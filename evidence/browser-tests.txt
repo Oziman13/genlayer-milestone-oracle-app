@@ -1,0 +1,46 @@
+PASS no wallet: state still readable
+PASS no wallet: finalize disabled with reason
+PASS no wallet: explains how to proceed
+PASS no private key input anywhere
+PASS no localStorage key material
+PASS connect: wrong chain -> add chain then switch
+PASS connect: ends on Studio chain
+PASS connect: role pill shows funder
+PASS connect: user rejection explained, not connected
+PASS viewer: role viewer
+PASS viewer: start/assess/amend locked, finalize open after window
+PASS viewer: reason names the rule
+PASS window open: finalize locked with reason
+PASS funder cannot amend
+PASS builder in NEEDS_EVIDENCE with failing check: amend enabled
+PASS builder: passing check cannot be amended
+PASS start allowed in NEEDS_EVIDENCE
+PASS finalized: every action locked
+PASS lifecycle: ACCEPTED is shown as in progress, not as applied
+PASS lifecycle: FINALIZED+SUCCESS reported as applied
+PASS lifecycle: transaction went through the wallet from the connected account
+PASS lifecycle: state reloaded afterwards
+PASS lifecycle: pending record cleared
+PASS contract error: FINALIZED+ERROR reported as refused, not applied
+PASS undetermined: reported as not applied
+PASS user rejects signature: clear message, no polling
+PASS user rejects: buttons usable again
+PASS send error with unchanged nonce: reported as not sent
+PASS send error but nonce moved: flagged ambiguous, resend discouraged
+PASS network switched away: warning shown
+PASS wrong network at send time: wallet is switched back before sending
+PASS resume: finds the open transaction and reports final result
+PASS resume: loads the milestone it belonged to
+PASS resume: record cleared
+PASS setup: form visible with one starter check
+PASS setup: asks to connect first and lists field errors
+PASS setup: builder equal to funder rejected before any transaction
+PASS setup: out-of-range window and empty check rejected
+PASS setup: deploy is signed by the wallet
+PASS setup: after FINALIZED+SUCCESS the new address is picked up and loaded
+PASS setup: share link offered
+PASS deploy refused by contract: reported, address NOT adopted
+PASS hostile title rendered as text, no script ran
+PASS no page errors in the whole run
+
+44 passed, 0 failed
