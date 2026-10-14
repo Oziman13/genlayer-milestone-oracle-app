@@ -42,5 +42,10 @@ PASS setup: share link offered
 PASS deploy refused by contract: reported, address NOT adopted
 PASS hostile title rendered as text, no script ran
 PASS no page errors in the whole run
+PASS fresh visit with no address and nothing remembered shows an empty box
+PASS a loaded address is remembered
+PASS reload without ?address= restores it and loads the milestone
+PASS an address in the link wins over the remembered one
+PASS no page errors in the remember-address checks
 
-44 passed, 0 failed
+49 passed, 0 failed

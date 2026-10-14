@@ -19,7 +19,9 @@ let wallet = null;       // write client for that wallet
 let state = null;
 let busy = false;
 
-$("addr").value = new URLSearchParams(location.search).get("address") || "";
+const LAST = "mo_last_address";   // remembered so a page reload keeps the milestone you were looking at
+const lastAddr = () => { try { return localStorage.getItem(LAST) || ""; } catch { return ""; } };
+$("addr").value = new URLSearchParams(location.search).get("address") || lastAddr();
 
 function say(text, err = false) { const m = $("txmsg"); m.className = "msg" + (err ? " err" : ""); m.textContent = text; }
 const txLink = h => EXPLORER ? `\nExplorer: ${EXPLORER}/tx/${h}` : "";
@@ -120,6 +122,7 @@ async function load() {
     }
     $("hist").innerHTML = rows.join("") || '<tr><td colspan="6">No history yet</td></tr>';
     msg.textContent = "Loaded.";
+    try { localStorage.setItem(LAST, $("addr").value.trim()); } catch { /* storage may be blocked */ }
     renderWallet();
   } catch (e) {
     msg.textContent = "Could not read the contract: " + (e.message || e);

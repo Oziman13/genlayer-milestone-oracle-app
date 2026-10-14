@@ -191,6 +191,8 @@ const H = "0x" + "ab".repeat(32);
   ok("lifecycle: FINALIZED+SUCCESS reported as applied", await waitText(c.p, "#txmsg", /was applied/));
   const sent = await c.p.evaluate(() => window.__reqs.find(r => r.method === "eth_sendTransaction"));
   ok("lifecycle: transaction went through the wallet from the connected account", sent && sent.params[0].from.toLowerCase() === OTHER);
+  // the reload runs right after the "applied" message appears, so wait for it instead of racing it
+  for (let i = 0; i < 40 && c.rpc.methods.filter(m => m === "gen_call").length < 4; i++) await new Promise(r => setTimeout(r, 100));
   ok("lifecycle: state reloaded afterwards", c.rpc.methods.filter(m => m === "gen_call").length >= 4);
   ok("lifecycle: pending record cleared", (await c.p.evaluate(() => localStorage.getItem("mo_pending_tx"))) === null);
   await c.ctx.close();
@@ -302,6 +304,21 @@ const H = "0x" + "ab".repeat(32);
   await c.open(`&address=${CONTRACT}`); await c.p.waitForSelector("#title", { state: "visible" });
   ok("hostile title rendered as text, no script ran", (await text(c.p, "#title")).includes("<img") && dialogs.length === 0);
   ok("no page errors in the whole run", c.errs.length === 0, c.errs.join("|"));
+  await c.ctx.close();
+}
+
+{
+  // the page remembers the last milestone you looked at, so a reload does not drop it
+  const c = await newCase({ state: baseState() });
+  await c.open(""); 
+  ok("fresh visit with no address and nothing remembered shows an empty box", (await c.p.inputValue("#addr")) === "");
+  await c.open(`&address=${CONTRACT}`); await c.p.waitForSelector("#title", { state: "visible" });
+  ok("a loaded address is remembered", (await c.p.evaluate(() => localStorage.getItem("mo_last_address"))) === CONTRACT);
+  await c.open(""); await c.p.waitForSelector("#title", { state: "visible" });
+  ok("reload without ?address= restores it and loads the milestone", (await c.p.inputValue("#addr")) === CONTRACT && (await text(c.p, "#title")) === "Ship v0.1.0");
+  await c.open(`&address=${NEWC}`);
+  ok("an address in the link wins over the remembered one", (await c.p.inputValue("#addr")) === NEWC);
+  ok("no page errors in the remember-address checks", c.errs.length === 0, c.errs.join("|"));
   await c.ctx.close();
 }
 
