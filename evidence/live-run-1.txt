@@ -1,0 +1,29 @@
+Milestone Oracle v0.1.0 -- live run on GenLayer Studionet (chain id 61999)
+
+Contract:  0xb222ae7ee55C8E71f11A6d97c49932DEA1177786
+Funder:    0x663247c083dcbb64e0c8c3bfacd53026427e5350  (Studio test account "GL-A")
+Builder:   0xabf20c3e89d0e1c37deaea3b44602f4838661160  (Studio test account "GL-B")
+Page:      https://oziman13.github.io/genlayer-milestone-oracle-app/web/?address=0xb222ae7ee55C8E71f11A6d97c49932DEA1177786
+Note:      both accounts belong to the same person, so this shows the mechanics, not an independent attestation.
+           All transactions were signed in MetaMask through the web client (no key ever enters the page).
+
+Milestone: "Ship v0.1.0 of Milestone Oracle with a Known limitations section and a live page"
+Deadline:  end of 2026-12-31 (UTC), challenge window 300 s, amendments 0 of 3
+
+Checklist (as loaded by the page after deployment):
+  c1 GITHUB_RELEASE  Oziman13/genlayer-milestone-oracle release v0.1.0
+  c2 REPO_FILE       Oziman13/genlayer-milestone-oracle@main: README.md contains "Known limitations"
+  c3 LIVE_PAGE       https://oziman13.github.io/genlayer-milestone-oracle-app/web/ answers 200 and contains "Milestone Oracle"
+
+History read back from the contract (get_history_json), times UTC:
+  #0  2026-10-14 08:57:24  START     NONE   caller 0x663247...5350
+  #1  2026-10-14 08:58:23  ASSESS    MET    caller 0x663247...5350   (c1 PASS, c2 PASS, c3 PASS)
+  #2  2026-10-14 09:03:41  FINALIZE  MET    caller 0x663247...5350
+
+Final state: round 1, phase FINALIZED, candidate MET, Attestation: MET.
+After finalization Start round / Assess / Finalize are disabled by the page ("The milestone is finalized").
+
+Last transaction as reported by the page: "finalize was applied: the transaction is FINALIZED and the contract call succeeded."
+Explorer: https://genlayer-explorer.vercel.app/tx/0xe480f54efd7db89f67de0a4f239dd8cd57b278d071d9a887c1ee8a92a34ff2e1
+
+Not exercised in this run: builder amendment (covered by direct tests) and the NOT_MET / INCONCLUSIVE paths.
