@@ -56,3 +56,19 @@ export function validateSetup(form, funderAddress) {
   }
   return errs;
 }
+
+// Did the contract's state change in the way this action would have changed it? Only a hint for the
+// user while a transaction is unresolved; it never clears a pending record by itself.
+export function snapshotOf(state) {
+  return state ? { round: state.round, phase: state.phase, history_count: state.history_count, amendments: state.amendments } : null;
+}
+export function effectSeen(fn, args, before, now) {
+  if (!before || !now) return null;
+  switch (fn) {
+    case "start_round": return now.round > before.round || (now.phase === "OPEN" && before.phase !== "OPEN");
+    case "assess": return now.history_count > before.history_count;
+    case "amend": return now.amendments > before.amendments;
+    case "finalize": return now.phase === "FINALIZED" && before.phase !== "FINALIZED";
+    default: return null;
+  }
+}

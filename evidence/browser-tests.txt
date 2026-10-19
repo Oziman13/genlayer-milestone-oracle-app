@@ -1,3 +1,4 @@
+# Output of: npm test (mock EIP-1193 wallet + mock Studio RPC, Chromium). Run 2026-10-19.
 PASS no wallet: state still readable
 PASS no wallet: finalize disabled with reason
 PASS no wallet: explains how to proceed
@@ -47,5 +48,36 @@ PASS a loaded address is remembered
 PASS reload without ?address= restores it and loads the milestone
 PASS an address in the link wins over the remembered one
 PASS no page errors in the remember-address checks
+PASS start_round: sent with the right function and applied only after FINALIZED+SUCCESS
+PASS start_round: the page reloads the state (phase OPEN) and unlocks assess
+PASS assess: sent as assess and applied, state reloaded to PROVISIONAL
+PASS amend: sent with the target and note, applied, amendment counter reloaded
+PASS funder cannot amend or finalize outside the rules, nothing can be sent
+PASS ambiguous: the record keeps account, network, contract, action and nonce context
+PASS ambiguous: the unfinished-transaction panel shows that context
+PASS ambiguous: every send, including deploy, is locked with the reason
+PASS ambiguous: a blind resend is impossible (only the first transaction was ever sent)
+PASS reload: the matching transaction is located and reported as applied (other contract / ancient tx ignored)
+PASS reload: record cleared and sends unlocked again
+PASS unresolved (nonce moved, nothing listed): says why and keeps sends blocked
+PASS unresolved: points to the account history in the explorer
+PASS unresolved -> Check again finds the transaction once it is listed
+PASS listing unavailable and nonce moved: unresolved, blocked, honest wording
+PASS two candidates: both hashes are shown, nothing is guessed, sends stay blocked
+PASS manual release: 'I checked: it was not sent' clears the record and unlocks
+PASS reload during signing, nonce unchanged: reported as not sent, safe to retry
+PASS reload during signing, nonce unchanged: sends unlocked
+PASS reload during signing, tx was broadcast: located by the listing and followed to FINALIZED
+PASS nonce unreadable + wallet error: flagged ambiguous and blocked (never 'not sent')
+PASS nonce unreadable: the record is stored as ambiguous
+PASS unresolved: the contract state is compared with the snapshot and the hint is shown (record is NOT cleared by it)
+PASS reload recovery: finishes the recorded transaction
+PASS reload recovery: the Contract box switches to the recorded contract and loads it
+PASS deploy recovery: the new address is adopted from the FINALIZED+SUCCESS receipt and loaded
+PASS deploy recovery: share link shown and record cleared
+PASS deploy recovery: a refused deployment is reported and its address is NOT adopted
+PASS deploy recovery: no address in the receipt -> clear message, nothing adopted
+PASS open transaction: sends are locked while it is unresolved
+PASS open transaction: once it is FINALIZED+SUCCESS it is reported, the record is cleared and sends unlock
 
-49 passed, 0 failed
+80 passed, 0 failed

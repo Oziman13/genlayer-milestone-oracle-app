@@ -1,9 +1,11 @@
 // Browser tests with a mock EIP-1193 wallet and a mock Studio RPC. They check the page's behaviour
 // (wallet connect, roles, transaction lifecycle). They do NOT prove real MetaMask or real Studionet behaviour.
-// Run from a folder where playwright-core and genlayer-js are installed:  node wallet_flow.test.mjs
+// Run from the repository root:  npm install && npx playwright-core install chromium && npm test
+// (set CHROMIUM_PATH to use an already installed Chromium instead of the downloaded one)
 import { chromium } from "playwright-core";
 import { abi } from "genlayer-js";
-import { spawn } from "node:child_process";
+import http from "node:http";
+import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -13,9 +15,15 @@ const FUNDER = "0x" + "a1".repeat(20), BUILDER = "0x" + "b2".repeat(20), OTHER =
 const CONTRACT = "0x" + "d4".repeat(20), NEWC = "0x" + "e5".repeat(20);
 const NOW = Math.floor(Date.now() / 1000);
 
-const srv = spawn("python3", ["-m", "http.server", String(PORT), "-d", WEB], { stdio: "ignore" });
-await new Promise(r => setTimeout(r, 800));
-const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium", args: ["--no-sandbox"] });
+const MIME = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css" };
+const srv = http.createServer((req, res) => {
+  const u = new URL(req.url, "http://localhost");
+  const f = path.join(WEB, u.pathname === "/" ? "index.html" : decodeURIComponent(u.pathname));
+  if (!f.startsWith(WEB) || !fs.existsSync(f) || fs.statSync(f).isDirectory()) { res.writeHead(404); return res.end("not found"); }
+  res.writeHead(200, { "content-type": MIME[path.extname(f)] || "application/octet-stream" }); res.end(fs.readFileSync(f));
+});
+await new Promise(r => srv.listen(PORT, r));
+const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined, args: ["--no-sandbox"] });
 
 let pass = 0, fail = 0;
 const ok = (name, cond, extra = "") => { cond ? pass++ : fail++; console.log((cond ? "PASS " : "FAIL ") + name + (cond ? "" : "  " + extra)); };
@@ -33,7 +41,9 @@ async function newCase({ state, txScripts = {}, wallet = {}, hasWallet = true, n
   const ctx = await browser.newContext();
   const p = await ctx.newPage();
   const errs = []; p.on("pageerror", e => errs.push(String(e)));
-  const rpc = { methods: [], state, txScripts, nonce: 0, txIdx: {}, sends: [] };
+  // states: per-contract state (lower-case address) for tests with more than one contract
+  // listed: what the node returns for the per-account transaction listing; null = the call fails
+  const rpc = { methods: [], state, states: {}, txScripts, nonce: 0, txIdx: {}, sends: [], listed: [], nonceFail: false, onFinal: null, finalSeen: {} };
   await p.exposeFunction("__bumpNonce", () => { rpc.nonce++; });
   await p.route("**/contracts/milestone_oracle.py", r => r.fulfill({ status: 200, contentType: "text/plain", body: "class MilestoneOracle:\n  pass\n" }));
   await p.route("https://studio.genlayer.com/**", async r => {
@@ -45,12 +55,14 @@ async function newCase({ state, txScripts = {}, wallet = {}, hasWallet = true, n
       if (x.method === "gen_call") {
         const txt = Buffer.from((x.params[0].data || "").replace(/^0x/, ""), "hex").toString("latin1");
         let s = "NONE";
-        if (txt.includes("get_state_json")) s = JSON.stringify(rpc.state);
+        const to = String(x.params[0].to || "").toLowerCase();
+        if (txt.includes("get_state_json")) s = JSON.stringify(rpc.states[to] || rpc.state);
         else if (txt.includes("get_attestation")) s = rpc.state.phase === "FINALIZED" ? rpc.state.final_verdict : "NONE";
         else if (txt.includes("get_history_json")) s = JSON.stringify({ action: "ASSESS", verdict: "MET", timestamp: NOW, note: "", caller: FUNDER });
         return { jsonrpc: "2.0", id: x.id, result: Buffer.from(abi.calldata.encode(s)).toString("hex") };
       }
-      if (x.method === "eth_getTransactionCount") return { jsonrpc: "2.0", id: x.id, result: "0x" + rpc.nonce.toString(16) };
+      if (x.method === "eth_getTransactionCount") return rpc.nonceFail ? { jsonrpc: "2.0", id: x.id, error: { code: -32000, message: "mock: nonce unavailable" } } : { jsonrpc: "2.0", id: x.id, result: "0x" + rpc.nonce.toString(16) };
+      if (x.method === "sim_getTransactionsForAddress") return rpc.listed === null ? { jsonrpc: "2.0", id: x.id, error: { code: -32601, message: "mock: listing unsupported" } } : { jsonrpc: "2.0", id: x.id, result: rpc.listed };
       if (x.method === "eth_gasPrice") return { jsonrpc: "2.0", id: x.id, result: "0x1" };
       if (x.method === "eth_estimateGas") return { jsonrpc: "2.0", id: x.id, result: "0x30d40" };
       if (x.method === "eth_chainId") return { jsonrpc: "2.0", id: x.id, result: "0xf22f" };
@@ -58,6 +70,7 @@ async function newCase({ state, txScripts = {}, wallet = {}, hasWallet = true, n
         const h = x.params[0]; const seq = rpc.txScripts[h] || [];
         const i = Math.min(rpc.txIdx[h] || 0, seq.length - 1); rpc.txIdx[h] = (rpc.txIdx[h] || 0) + 1;
         if (!seq.length) return { jsonrpc: "2.0", id: x.id, result: null };
+        if (seq[i].status === "FINALIZED" && !rpc.finalSeen[h]) { rpc.finalSeen[h] = true; rpc.onFinal && rpc.onFinal(h); }
         return { jsonrpc: "2.0", id: x.id, result: seq[i] };
       }
       return { jsonrpc: "2.0", id: x.id, error: { code: -32000, message: "mock: unsupported " + x.method } };
@@ -322,6 +335,187 @@ const H = "0x" + "ab".repeat(32);
   await c.ctx.close();
 }
 
-await browser.close(); srv.kill();
+
+// ============================ NEW: wallet paths, ambiguous-send recovery, reload recovery ============================
+const CONTRACT2 = "0x" + "f6".repeat(20);
+const connect = async c => { await c.p.click("#connect"); await waitText(c.p, "#wstatus", /Connected/); };
+const loaded = async c => { await c.open(`&address=${CONTRACT}`); await c.p.waitForSelector("#title", { state: "visible" }); };
+const hexData = c => c.p.evaluate(() => (window.__reqs.filter(r => r.method === "eth_sendTransaction").pop() || { params: [{}] }).params[0].data || "");
+const dataText = async c => Buffer.from((await hexData(c)).replace(/^0x/, ""), "hex").toString("latin1");
+const sendCount = c => c.p.evaluate(() => window.__reqs.filter(r => r.method === "eth_sendTransaction").length);
+const pend = c => c.p.evaluate(() => JSON.parse(localStorage.getItem("mo_pending_tx") || "null"));
+const seed = (c, rec) => c.p.addInitScript(r => { if (!sessionStorage.getItem("seeded")) { localStorage.setItem("mo_pending_tx", JSON.stringify(r)); sessionStorage.setItem("seeded", "1"); } }, rec);
+const allLocked = async c => (await Promise.all(["#b_start", "#b_assess", "#b_fin", "#b_amend", "#s_deploy"].map(i => c.p.locator(i).isDisabled()))).every(Boolean);
+const listedTx = (over = {}) => ({ hash: H, from_address: OTHER, to_address: CONTRACT, nonce: 0, created_at: Math.floor(Date.now() / 1000), ...over });
+const unlocked = c => c.p.waitForFunction(() => !document.getElementById("b_fin").disabled, null, { timeout: 5000 }).then(() => true).catch(() => false);
+
+// --- the owner wallet paths that had no browser test: start_round, assess, amend -------------------------
+{
+  const c = await newCase({ state: baseState({ phase: "IDLE", round: 0, candidate: "NONE", window_end: 0 }), wallet: { accounts: [FUNDER] }, txScripts: { [H]: [tx("ACCEPTED", "SUCCESS"), tx("FINALIZED", "SUCCESS")] } });
+  c.rpc.onFinal = () => { c.rpc.state = baseState({ phase: "OPEN", round: 1, candidate: "NONE", window_end: 0 }); };
+  await loaded(c); await connect(c);
+  await c.p.click("#b_start");
+  ok("start_round: sent with the right function and applied only after FINALIZED+SUCCESS", await waitText(c.p, "#txmsg", /start_round was applied/) && (await dataText(c)).includes("start_round") && (await sendCount(c)) === 1);
+  ok("start_round: the page reloads the state (phase OPEN) and unlocks assess", (await text(c.p, "#phase")) === "OPEN" && await c.p.waitForFunction(() => !document.getElementById("b_assess").disabled, null, { timeout: 5000 }).then(() => true).catch(() => false));
+  await c.ctx.close();
+}
+{
+  const c = await newCase({ state: baseState({ phase: "OPEN", round: 1, candidate: "NONE", window_end: 0 }), wallet: { accounts: [BUILDER] }, txScripts: { [H]: [tx("FINALIZED", "SUCCESS")] } });
+  c.rpc.onFinal = () => { c.rpc.state = baseState({ phase: "PROVISIONAL", round: 1, candidate: "MET", history_count: 1, window_end: NOW + 600 }); };
+  await loaded(c); await connect(c);
+  await c.p.click("#b_assess");
+  ok("assess: sent as assess and applied, state reloaded to PROVISIONAL", await waitText(c.p, "#txmsg", /assess was applied/) && (await dataText(c)).includes("assess") && await waitText(c.p, "#phase", /^PROVISIONAL$/));
+  await c.ctx.close();
+}
+{
+  const c = await newCase({ state: baseState({ phase: "NEEDS_EVIDENCE", round: 1, candidate: "NONE", window_end: 0 }), wallet: { accounts: [BUILDER] }, txScripts: { [H]: [tx("FINALIZED", "SUCCESS")] } });
+  c.rpc.onFinal = () => { c.rpc.state = baseState({ phase: "NEEDS_EVIDENCE", round: 1, candidate: "NONE", amendments: 1, window_end: 0 }); };
+  await loaded(c); await connect(c);
+  await c.p.selectOption("#acheck", "readme");
+  await c.p.fill("#atarget", "https://example.org/new.md"); await c.p.fill("#anote", "moved the file");
+  await c.p.click("#b_amend");
+  ok("amend: sent with the target and note, applied, amendment counter reloaded", await waitText(c.p, "#txmsg", /amend was applied/) && (await dataText(c)).includes("amend") && (await dataText(c)).includes("moved the file") && await waitText(c.p, "#amends", /1 of 3/));
+  await c.ctx.close();
+}
+{
+  const c = await newCase({ state: baseState({ phase: "NEEDS_EVIDENCE", window_end: 0 }), wallet: { accounts: [FUNDER] } });
+  await loaded(c); await connect(c);
+  ok("funder cannot amend or finalize outside the rules, nothing can be sent", (await c.p.locator("#b_amend").isDisabled()) && (await c.p.locator("#b_fin").isDisabled()) && (await sendCount(c)) === 0);
+  await c.ctx.close();
+}
+
+// --- ambiguous send: context is kept, retry is blocked, the transaction is located after a reload -------
+async function ambiguousCase(extra = {}) {
+  const c = await newCase({ state: baseState(), wallet: { accounts: [OTHER], sendMode: "errorButSent", hash: H }, txScripts: { [H]: [tx("ACCEPTED", "SUCCESS"), tx("FINALIZED", "SUCCESS")] }, ...extra });
+  await loaded(c); await connect(c); await c.p.click("#b_fin");
+  await waitText(c.p, "#txmsg", /may have been sent/);
+  return c;
+}
+{
+  const c = await ambiguousCase();
+  const p = await pend(c);
+  ok("ambiguous: the record keeps account, network, contract, action and nonce context",
+    p && p.stage === "ambiguous" && p.account.toLowerCase() === OTHER && p.chainId === "0xf22f" && p.address === CONTRACT && p.fn === "finalize" && p.label === "finalize" && p.nonceBefore === 0 && p.nonceAfter === 1);
+  ok("ambiguous: the unfinished-transaction panel shows that context", await c.p.locator("#recovery").isVisible() && /finalize/.test(await text(c.p, "#recmsg")) && (await text(c.p, "#recmsg")).includes(OTHER) && (await text(c.p, "#recmsg")).includes(CONTRACT) && /before sending: 0/.test(await text(c.p, "#recmsg")));
+  ok("ambiguous: every send, including deploy, is locked with the reason", await allLocked(c) && /may have been sent/.test(await text(c.p, "#r_finalize")));
+  await c.p.click("#b_fin", { force: true }).catch(() => {});
+  ok("ambiguous: a blind resend is impossible (only the first transaction was ever sent)", (await sendCount(c)) === 1);
+  await c.ctx.close();
+}
+{ // reload, the node lists exactly one matching transaction -> it is found and followed to the end
+  const c = await ambiguousCase();
+  c.rpc.listed = [listedTx(), listedTx({ hash: "0x" + "11".repeat(32), to_address: CONTRACT2, nonce: 0 }), listedTx({ hash: "0x" + "22".repeat(32), nonce: 0, created_at: 1000 })];
+  await c.p.reload();
+  ok("reload: the matching transaction is located and reported as applied (other contract / ancient tx ignored)", await waitText(c.p, "#txmsg", /finalize was applied/));
+  await connect(c);
+  ok("reload: record cleared and sends unlocked again", (await pend(c)) === null && await unlocked(c) && await c.p.locator("#recovery").isHidden());
+  await c.ctx.close();
+}
+{ // reload, the node lists nothing but the account's nonce moved -> unresolved, still blocked
+  const c = await ambiguousCase();
+  c.rpc.listed = [];
+  await c.p.reload();
+  ok("unresolved (nonce moved, nothing listed): says why and keeps sends blocked", await waitText(c.p, "#recmsg", /transaction count moved \(0 to 1\) but no matching transaction is listed/) && await allLocked(c));
+  ok("unresolved: points to the account history in the explorer", /Account history: .*\/address\//.test(await text(c.p, "#recmsg")));
+  c.rpc.listed = [listedTx()];
+  await c.p.click("#recheck");
+  ok("unresolved -> Check again finds the transaction once it is listed", await waitText(c.p, "#txmsg", /finalize was applied/) && (await pend(c)) === null);
+  await c.ctx.close();
+}
+{ // listing not supported by the node: nonce still decides
+  const c = await ambiguousCase();
+  c.rpc.listed = null;
+  await c.p.reload();
+  ok("listing unavailable and nonce moved: unresolved, blocked, honest wording", await waitText(c.p, "#recmsg", /node could not list/) && await allLocked(c));
+  await c.ctx.close();
+}
+{ // two plausible transactions
+  const c = await ambiguousCase();
+  const H2 = "0x" + "33".repeat(32);
+  c.rpc.listed = [listedTx(), listedTx({ hash: H2, nonce: 1 })];
+  await c.p.reload();
+  ok("two candidates: both hashes are shown, nothing is guessed, sends stay blocked", await waitText(c.p, "#recmsg", /Several transactions/) && (await text(c.p, "#recmsg")).includes(H) && (await text(c.p, "#recmsg")).includes(H2) && await allLocked(c));
+  await connect(c);
+  ok("manual release: 'I checked: it was not sent' clears the record and unlocks", await (async () => { await c.p.click("#recdismiss"); return (await pend(c)) === null && !(await c.p.locator("#b_fin").isDisabled()); })());
+  await c.ctx.close();
+}
+{ // hash never obtained, nonce did not move -> safe to retry
+  const c = await newCase({ state: baseState(), wallet: { accounts: [OTHER] } });
+  await seed(c, { stage: "signing", label: "finalize", fn: "finalize", args: [], address: CONTRACT, account: OTHER, chainId: "0xf22f", nonceBefore: 0, at: Date.now() });
+  await loaded(c);
+  ok("reload during signing, nonce unchanged: reported as not sent, safe to retry", await waitText(c.p, "#txmsg", /was not sent: the account's transaction count did not move/) && (await pend(c)) === null);
+  await connect(c);
+  ok("reload during signing, nonce unchanged: sends unlocked", !(await c.p.locator("#b_fin").isDisabled()));
+  await c.ctx.close();
+}
+{ // hash never obtained, tx was in fact broadcast
+  const c = await newCase({ state: baseState(), wallet: { accounts: [OTHER] }, txScripts: { [H]: [tx("FINALIZED", "SUCCESS")] } });
+  c.rpc.nonce = 1; c.rpc.listed = [listedTx()];
+  await seed(c, { stage: "signing", label: "finalize", fn: "finalize", args: [], address: CONTRACT, account: OTHER, chainId: "0xf22f", nonceBefore: 0, at: Date.now() });
+  await loaded(c);
+  ok("reload during signing, tx was broadcast: located by the listing and followed to FINALIZED", await waitText(c.p, "#txmsg", /finalize was applied/) && (await pend(c)) === null);
+  await c.ctx.close();
+}
+{ // nonce unreadable when the wallet fails -> must be treated as ambiguous, not as 'not sent'
+  const c = await newCase({ state: baseState(), wallet: { accounts: [OTHER], sendMode: "errorNotSent" } });
+  await loaded(c); await connect(c); c.rpc.nonceFail = true; await c.p.click("#b_fin");
+  ok("nonce unreadable + wallet error: flagged ambiguous and blocked (never 'not sent')", await waitText(c.p, "#txmsg", /may have been sent/) && !/was not sent/.test(await text(c.p, "#txmsg")) && await allLocked(c));
+  ok("nonce unreadable: the record is stored as ambiguous", (await pend(c)).stage === "ambiguous");
+  await c.ctx.close();
+}
+{ // effect hint while unresolved
+  const c = await newCase({ state: baseState({ phase: "FINALIZED", window_end: 0 }), wallet: { accounts: [OTHER] } });
+  c.rpc.nonce = 1; c.rpc.listed = [];
+  await seed(c, { stage: "ambiguous", label: "finalize", fn: "finalize", args: [], address: CONTRACT, account: OTHER, chainId: "0xf22f", nonceBefore: 0, nonceAfter: 1, at: Date.now(),
+    snapshot: { round: 1, phase: "PROVISIONAL", history_count: 0, amendments: 0 } });
+  await loaded(c);
+  ok("unresolved: the contract state is compared with the snapshot and the hint is shown (record is NOT cleared by it)", await waitText(c.p, "#recmsg", /already shows the effect of finalize/) && (await pend(c)) !== null);
+  await c.ctx.close();
+}
+
+// --- reload recovery uses the recorded contract and adopts a finalized deployment -----------------------
+{ // the page was opened for another contract; the recorded transaction decides what is loaded
+  const c = await newCase({ state: baseState({ title: "Wrong milestone" }), wallet: { accounts: [OTHER] }, txScripts: { [H]: [tx("ACCEPTED", "SUCCESS"), tx("FINALIZED", "SUCCESS", { recipient: CONTRACT2 })] } });
+  c.rpc.states[CONTRACT2] = baseState({ title: "Recorded milestone" });
+  await seed(c, { stage: "sent", hash: H, label: "assess", fn: "assess", args: [], address: CONTRACT2, account: OTHER, chainId: "0xf22f", nonceBefore: 0, at: Date.now() });
+  await c.open(`&address=${CONTRACT}`);
+  ok("reload recovery: finishes the recorded transaction", await waitText(c.p, "#txmsg", /assess was applied/));
+  ok("reload recovery: the Contract box switches to the recorded contract and loads it", (await c.p.inputValue("#addr")).toLowerCase() === CONTRACT2 && (await text(c.p, "#title")) === "Recorded milestone");
+  await c.ctx.close();
+}
+{ // finalized deployment is adopted after a reload
+  const c = await newCase({ state: baseState({ title: "Old milestone" }), wallet: { accounts: [FUNDER] }, txScripts: { [H]: [tx("PENDING"), tx("FINALIZED", "SUCCESS", { recipient: NEWC })] } });
+  c.rpc.states[NEWC] = baseState({ title: "Fresh milestone" });
+  await seed(c, { stage: "sent", hash: H, label: "deploy", fn: "deploy", args: ["x"], account: FUNDER, chainId: "0xf22f", nonceBefore: 0, at: Date.now() });
+  await c.open(`&address=${CONTRACT}`);
+  ok("deploy recovery: the new address is adopted from the FINALIZED+SUCCESS receipt and loaded", await c.p.waitForFunction(a => document.getElementById("addr").value.toLowerCase() === a, NEWC, { timeout: 8000 }).then(() => true).catch(() => false) && await waitText(c.p, "#title", /Fresh milestone/));
+  ok("deploy recovery: share link shown and record cleared", await waitText(c.p, "#txmsg", new RegExp("\\?address=" + NEWC)) && (await pend(c)) === null);
+  await c.ctx.close();
+}
+{ // deploy FINALIZED but refused -> never adopted
+  const c = await newCase({ state: baseState({ title: "Old milestone" }), wallet: { accounts: [FUNDER] }, txScripts: { [H]: [tx("FINALIZED", "ERROR", { recipient: NEWC })] } });
+  await seed(c, { stage: "sent", hash: H, label: "deploy", fn: "deploy", args: ["x"], account: FUNDER, chainId: "0xf22f", nonceBefore: 0, at: Date.now() });
+  await c.open(`&address=${CONTRACT}`);
+  ok("deploy recovery: a refused deployment is reported and its address is NOT adopted", await waitText(c.p, "#txmsg", /contract refused it/) && (await c.p.inputValue("#addr")) === CONTRACT);
+  await c.ctx.close();
+}
+{ // deploy finalized but no address in the receipt
+  const c = await newCase({ state: baseState({ title: "Old milestone" }), wallet: { accounts: [FUNDER] }, txScripts: { [H]: [tx("FINALIZED", "SUCCESS", { recipient: undefined })] } });
+  await seed(c, { stage: "sent", hash: H, label: "deploy", fn: "deploy", args: ["x"], account: FUNDER, chainId: "0xf22f", nonceBefore: 0, at: Date.now() });
+  await c.open(`&address=${CONTRACT}`);
+  ok("deploy recovery: no address in the receipt -> clear message, nothing adopted", await waitText(c.p, "#txmsg", /could not read the new contract address/) && (await c.p.inputValue("#addr")) === CONTRACT);
+  await c.ctx.close();
+}
+{ // a transaction that is still not final stays recorded and blocked, and can be re-checked
+  const c = await newCase({ state: baseState(), wallet: { accounts: [OTHER] }, txScripts: { [H]: [tx("PENDING")] } });
+  await seed(c, { stage: "sent", hash: H, label: "finalize", fn: "finalize", args: [], address: CONTRACT, account: OTHER, chainId: "0xf22f", nonceBefore: 0, at: Date.now() });
+  await loaded(c); await connect(c);
+  ok("open transaction: sends are locked while it is unresolved", await waitText(c.p, "#r_finalize", /Waiting for the earlier finalize transaction/) && (await c.p.locator("#b_fin").isDisabled()));
+  c.rpc.txScripts[H] = [tx("FINALIZED", "SUCCESS")];
+  ok("open transaction: once it is FINALIZED+SUCCESS it is reported, the record is cleared and sends unlock", await waitText(c.p, "#txmsg", /finalize was applied/) && (await pend(c)) === null && await unlocked(c));
+  await c.ctx.close();
+}
+
+await browser.close(); srv.close();
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

@@ -1,0 +1,18 @@
+{
+  "name": "genlayer-milestone-oracle-app",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "description": "Wallet-based web client for the Milestone Oracle Intelligent Contract on GenLayer Studionet",
+  "scripts": {
+    "build": "esbuild web/src/main.js --bundle --format=iife --minify --outfile=web/app.js",
+    "test": "node tests/browser/wallet_flow.test.mjs"
+  },
+  "dependencies": {
+    "genlayer-js": "1.1.8"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2",
+    "playwright-core": "1.64.0"
+  }
+}
