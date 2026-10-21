@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Builder record | Milestone Oracle</title>
+<link rel="icon" href="logo.png">
+<link rel="stylesheet" href="site.css">
+<style>body.badge header,body.badge .intro,body.badge footer,body.badge details{display:none}body.badge .wrap{padding:8px}body.badge section{padding:0}body.badge table,body.badge .notice{display:none}body.badge .sheet{border:0;padding:8px}</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top"><a class="brand" href="./"><img src="logo.png" alt="">Milestone Oracle</a><nav class="nav"><a href="app.html">Open the app</a></nav></header>
+  <main>
+  <section>
+    <div class="intro"><h2>Has this builder kept their word?</h2>
+    <p>Paste a builder address to see every finalized milestone recorded for it, with the verdict and who funded it.</p></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin:14px 0 22px"><input id="builder" style="flex:1 1 320px" spellcheck="false" aria-label="Builder address" placeholder="0x… builder address"><button class="btn" id="go" type="button">Show record</button></div>
+    <div id="out" aria-live="polite"></div>
+  </section>
+  </main>
+  <footer>Explorer: <a id="explorer" href="#">GenLayer Studio explorer</a></footer>
+</div>
+<script src="config.js"></script>
+<script src="builder.js"></script>
+</body>
+</html>

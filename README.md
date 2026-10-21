@@ -16,7 +16,7 @@ funds; a finalized verdict is an attestation readable with `get_attestation()`.
 ## What this client does
 
 
-`web/index.html` + `web/app.js` (bundled from `web/src/*.js` with genlayer-js 1.1.8). Reads are account-less.
+`web/index.html` (landing), `web/app.html` + `web/app.js` (the wallet app), `web/builder.html` + `web/builder.js` (read-only delivery record for a builder; `?builder=0x..&factory=0x..`, `&badge=1` for an embeddable view), `web/card.html` + `web/card.js` (shareable verdict card, `?address=0x..`; only a FINALIZED MET/NOT_MET gets a stamp), `web/deploy-factory.html` (one-time page that deploys the factory from the wallet and checks its code hash against the shown source), `web/skill.md` (agent instructions), `web/config.js` (factory address; empty until a factory is deployed, and pages then say so instead of showing sample data). Old `?address=` links on `index.html` redirect to `app.html`. The wallet app is (bundled from `web/src/*.js` with genlayer-js 1.1.8). Reads are account-less.
 Every write is signed by the user's own browser wallet (MetaMask or any EIP-1193 wallet). The page never
 creates, asks for or stores a private key.
 
@@ -63,3 +63,7 @@ creates, asks for or stores a private key.
   live; the page normalises it defensively and falls back to the nonce check.
 * Not exercised live: builder amendment, NOT_MET and INCONCLUSIVE verdicts (covered by the contract's direct tests).
 * A milestone verdict says the stated public checks hold, not that the work is good (see the contract's limitations).
+
+## Tests
+
+`npm test` runs `tests/browser/wallet_flow.test.mjs` (101 checks, wallet app incl. factory create, record and factory deploy flows) and `tests/browser/pages.test.mjs` (41 checks: landing, builder, verdict card pages and record helpers) against a mock wallet and a mock Studio RPC. They do not prove real MetaMask or real Studionet behaviour. Build with `npm run build`.

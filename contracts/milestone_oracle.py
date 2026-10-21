@@ -1,4 +1,4 @@
-# v0.1.0
+# v0.2.0
 # { "Depends": "py-genlayer:1jb45aa8ynh2a9c9xn3b7qqh8sm5q93hwfp7jqmwsfhh8jpz09h6" }
 from genlayer import *
 import json
@@ -428,9 +428,13 @@ class MilestoneOracle(gl.Contract):
     history: TreeMap[u32, str]
 
     def __init__(self, builder_address: str, title: str, deadline_date: str,
-                 checks_json: str, challenge_window_seconds: int):
+                 checks_json: str, challenge_window_seconds: int, funder_address: str = ""):
         builder = _address(builder_address)
-        funder = str(gl.message.sender_address).lower()
+        sender = str(gl.message.sender_address).lower()
+        # v0.2.0: a factory deploys on behalf of a user, so the funder can be named explicitly.
+        # Empty means "the deployer", exactly as in v0.1.0. The Delivery Record only counts
+        # milestones deployed by its own factory, so a named funder never lends credibility.
+        funder = _address(funder_address) if funder_address else sender
         if builder == funder:
             raise gl.vm.UserError("builder must differ from funder")
         title_text = _bounded(title, 3, 200, "title")

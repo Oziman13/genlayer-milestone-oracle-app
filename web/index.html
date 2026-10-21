@@ -3,132 +3,102 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Milestone Oracle</title>
-<style>
-  :root{--bg:#f4f8f6;--card:#fff;--ink:#16231f;--muted:#53625d;--line:#d9e6e0;--accent:#0f766e;
-        --ok:#1e8e5a;--warn:#b7791f;--bad:#c0392b}
-  @media (prefers-color-scheme:dark){:root{--bg:#101917;--card:#18231f;--ink:#e6f2ee;--muted:#9bb0a9;--line:#2a3b36;--accent:#5eead4;--ok:#4ade80;--warn:#fbbf24;--bad:#f87171}}
-  *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
-  main{max-width:880px;margin:0 auto;padding:24px 16px 64px}
-  h1{margin:0 0 4px;font-size:28px} h2{font-size:15px;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);margin:0 0 12px}
-  .sub{color:var(--muted);margin:0 0 20px}
-  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:16px}
-  .row{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between}
-  .badge{display:inline-block;padding:4px 12px;border-radius:999px;font-weight:700;font-size:14px;border:1px solid var(--line)}
-  .MET,.PASS,.FINALIZED{color:var(--ok)} .NOT_YET,.PROVISIONAL,.NEEDS_EVIDENCE,.INCONCLUSIVE,.ERROR{color:var(--warn)}
-  .NOT_MET,.FAIL,.LATE{color:var(--bad)} .NONE,.IDLE,.OPEN{color:var(--muted)}
-  dl{display:grid;grid-template-columns:max-content 1fr;gap:6px 16px;margin:0}
-  dt{color:var(--muted)} dd{margin:0;word-break:break-all}
-  table{width:100%;border-collapse:collapse;font-size:14px} th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top;word-break:break-word}
-  th{color:var(--muted);font-weight:600}
-  input,select,button{font:inherit;border-radius:10px;border:1px solid var(--line);padding:9px 12px;background:var(--card);color:var(--ink)}
-  input,select{width:100%;margin-bottom:8px}
-  button{background:var(--accent);color:#fff;border:0;font-weight:600;cursor:pointer} button:disabled{opacity:.5;cursor:not-allowed}
-  @media (prefers-color-scheme:dark){button{color:#06201c}}
-  button.ghost{background:transparent;color:var(--accent);border:1px solid var(--line)}
-  .msg{margin-top:10px;font-size:14px;color:var(--muted);white-space:pre-wrap;word-break:break-word}
-  .err{color:var(--bad)} .small{font-size:13px;color:var(--muted)} a{color:var(--accent)}
-  code{font-size:13px;word-break:break-all}
-  .actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
-  .chk{border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:8px}
-</style>
+<title>Milestone Oracle: did they deliver?</title>
+<meta name="description" content="Public checks, validator consensus and a lasting delivery record for every milestone. Runs on GenLayer Studionet.">
+<link rel="icon" href="logo.png">
+<link rel="stylesheet" href="site.css">
+<script>
+  // Old links (?address=0x...) opened the app directly; keep them working.
+  if (new URLSearchParams(location.search).has("address")) location.replace("app.html" + location.search);
+</script>
 </head>
 <body>
-<main>
-  <h1>Milestone Oracle</h1>
-  <p class="sub">A public, challengeable checklist for one delivery milestone, running as a GenLayer Intelligent Contract on Studionet. It holds no funds: a finalized verdict is an attestation anyone can read.</p>
+<div class="wrap">
+  <header class="top">
+    <a class="brand" href="./"><img src="logo.png" alt="">Milestone Oracle</a>
+    <nav class="nav" aria-label="Main">
+      <a href="#how">How it works</a><a href="#record">Delivery record</a><a href="#agents">For agents</a><a href="#faq">Questions</a><a href="app.html">Open the app</a>
+    </nav>
+  </header>
 
-  <div class="card" id="walletbar">
-    <h2>Wallet</h2>
-    <div class="row">
-      <div><span id="wstatus" class="small">Not connected.</span> <span class="badge NONE" id="rolepill" hidden></span></div>
-      <button id="connect">Connect wallet</button>
+  <main>
+  <div class="hero">
+    <div>
+      <h1>Did they deliver?</h1>
+      <p class="lead">Name the checks before the work starts. Validators read the public evidence, the builder gets a fair window to answer, and the verdict stays on the record.</p>
+      <div class="btns">
+        <a class="btn" href="app.html">Set up a milestone</a>
+        <a class="btn alt" href="app.html?address=0xb222ae7ee55C8E71f11A6d97c49932DEA1177786">Read a real verdict</a>
+      </div>
+      <p class="small" style="margin-top:16px;color:var(--muted);font-size:14px">Live on GenLayer Studionet (test network). Holds no funds.</p>
     </div>
-    <div class="msg" id="wmsg"></div>
-    <p class="small">Every transaction is signed in your own wallet (MetaMask or any EIP-1193 wallet) on the GenLayer Studio network. This page never asks for, creates or stores a private key. Use a Studio test account, not one that holds real funds.</p>
+
+    <figure class="slip" style="margin:0" aria-label="Rows from our own test run on Studionet">
+      <span class="stamp MET">MET</span>
+      <h3>Our own test run</h3>
+      <div class="meta">Studionet, 14 Oct 2026. Funder and builder were two of our own test accounts.</div>
+      <div class="row"><time>08:57:24</time><span>Round started</span><span class="tag NONE">START</span></div>
+      <div class="row"><time>08:58:23</time><span>Release, README and live page checked</span><span class="tag MET">3 of 3 PASS</span></div>
+      <div class="row"><time>09:03:41</time><span>Challenge window over, verdict finalized</span><span class="tag FINALIZED">FINAL</span></div>
+      <div class="meta" style="margin:12px 0 0">Contract <code>0xb222…7786</code></div>
+    </figure>
   </div>
 
-  <div class="card">
-    <h2>Contract</h2>
-    <input id="addr" spellcheck="false" aria-label="Contract address" placeholder="0x... contract address (or open this page with ?address=0x...)">
-    <div class="row"><button id="load">Load state</button><button id="newms" class="ghost">Create a new milestone</button><span class="small" id="loadmsg"></span></div>
-  </div>
+  <section id="how">
+    <h2>One milestone, four moves</h2>
+    <div class="grid" style="margin-top:22px">
+      <div class="step"><h3>1. The funder writes the checks</h3><p>A release tag, a file that must say something, a page that must be live, a claim a page must support. All of it public, all of it fixed up front.</p></div>
+      <div class="step"><h3>2. The builder ships</h3><p>No account with the funder is needed to look at the work. Anyone can open the milestone and see what is being checked.</p></div>
+      <div class="step"><h3>3. Validators read the evidence</h3><p>Each validator fetches the sources itself. Plain facts must match exactly; a failing check is shown, never hidden.</p></div>
+      <div class="step"><h3>4. A window, then a verdict</h3><p>The builder can point a failing check at the right place, only that. After the window anyone can finalize.</p></div>
+    </div>
+  </section>
 
-  <div class="card" id="setup" hidden>
-    <h2>Create a milestone (deploys a new contract)</h2>
-    <p class="small">The connected account becomes the funder. The builder is a different account. Contract code is fetched from this repository (<code>../contracts/milestone_oracle.py</code>) and sent as a deploy transaction you sign.</p>
-    <input id="s_builder" placeholder="Builder address (0x..., must differ from the connected account)">
-    <input id="s_title" placeholder="Milestone title">
-    <input id="s_deadline" placeholder="Deadline, YYYY-MM-DD (end of that day, UTC)">
-    <input id="s_window" type="number" value="300" aria-label="Challenge window seconds" placeholder="Challenge window in seconds (300 to 604800)">
-    <div id="s_checks"></div>
-    <div class="row" style="justify-content:flex-start"><button id="s_add" class="ghost">Add check</button><button id="s_deploy">Deploy milestone</button></div>
-    <div class="msg err" id="s_errs"></div>
-  </div>
-
-  <div id="app" hidden>
-    <div class="card">
-      <div class="row">
-        <div><h2>Milestone</h2><div id="title" style="font-size:20px;font-weight:700"></div><div class="small" id="deadline"></div></div>
-        <div style="text-align:right"><h2>Latest reading</h2><span class="badge" id="verdict"></span><div class="small" style="margin-top:6px">Attestation: <b id="att"></b></div></div>
+  <section id="record">
+    <div class="two">
+      <div>
+        <h2>Every finalized verdict adds to a record</h2>
+        <p>A single verdict answers one question. A record answers the next one: has this builder kept their word before?</p>
+        <p>Milestones created through the factory are the only ones the record accepts, and the factory reads each verdict back from the milestone contract. Nobody types a result in.</p>
+        <div class="btns"><a class="btn alt" href="builder.html">Look up a builder</a></div>
+      </div>
+      <div class="sheet">
+        <h3>What a record line says</h3>
+        <p>Who funded it, who built it, which checks held, how many times the builder amended where a check looks, and when it was finalized.</p>
+        <h3>What it does not say</h3>
+        <p>That the work was good, that the funder was fair, or that one person is behind one address. Treat a record as one input, not a credit score.</p>
       </div>
     </div>
+  </section>
 
-    <div class="card">
-      <h2>Checklist</h2>
-      <table><thead><tr><th>Check</th><th>Kind</th><th>What is read</th><th>Result</th></tr></thead><tbody id="checks"></tbody></table>
-      <p class="small">PASS/FAIL/LATE come from plain HTTP facts every validator verifies itself. ERROR means a source could not be read (rate limit, outage); it is never counted as a failure of the work.</p>
-    </div>
-
-    <div class="card">
-      <h2>Round</h2>
-      <dl>
-        <dt>Round</dt><dd id="round"></dd>
-        <dt>Phase</dt><dd><span class="badge" id="phase"></span></dd>
-        <dt>Candidate</dt><dd id="cand"></dd>
-        <dt>Challenge window</dt><dd id="window"></dd>
-        <dt>Amendments used</dt><dd id="amends"></dd>
-        <dt>Funder</dt><dd id="funder"></dd>
-        <dt>Builder</dt><dd id="builder"></dd>
-      </dl>
-    </div>
-
-    <div class="card">
-      <h2>History</h2>
-      <table><thead><tr><th>#</th><th>Time (UTC)</th><th>Action</th><th>Verdict</th><th>Note</th><th>Caller</th></tr></thead><tbody id="hist"></tbody></table>
-    </div>
-
-    <div class="card">
-      <h2>Actions</h2>
-      <p class="small">Buttons are enabled only when your connected account may do that action in the current phase; the line under each says why not. A transaction counts as done only when the network has FINALIZED it and the contract call itself returned without error.</p>
-      <div class="actions">
-        <div><button id="b_start">Start round</button><div class="small" id="r_start"></div></div>
-        <div><button id="b_assess">Assess</button><div class="small" id="r_assess"></div></div>
-        <div><button id="b_fin">Finalize</button><div class="small" id="r_finalize"></div></div>
+  <section id="agents">
+    <div class="two">
+      <div>
+        <h2>Agents can use it too</h2>
+        <p>An agent can create a milestone, run the rounds and read the record with plain contract calls. Everything it needs is in one page of instructions.</p>
+        <div class="btns"><a class="btn alt" href="skill.md">Read the agent instructions</a></div>
       </div>
-      <h2 style="margin-top:18px">Builder amendment</h2>
-      <select id="acheck" aria-label="Check to amend"></select>
-      <input id="atarget" placeholder="New target: a release tag, a file path, or an https URL on the same site">
-      <input id="anote" placeholder="Short note: why is the target moving?">
-      <button id="b_amend" class="ghost">Amend</button><div class="small" id="r_amend"></div>
-      <div class="row" style="justify-content:flex-start;margin-top:10px"><button id="refresh" class="ghost">Refresh</button></div>
+      <pre>Read https://oziman13.github.io/genlayer-milestone-oracle-app/web/skill.md
+and follow it to check milestone 0x... on GenLayer Studionet.
+Report the verdict, each check result and the Explorer link.</pre>
     </div>
-  </div>
+  </section>
 
-  <div class="card" id="recovery" hidden>
-    <h2>Unfinished transaction</h2>
-    <div class="msg err" id="recmsg"></div>
-    <div class="row" style="margin-top:10px"><button id="recheck">Check again</button><button id="recdismiss" class="ghost">I checked: it was not sent</button></div>
-  </div>
+  <section id="faq">
+    <h2>Questions</h2>
+    <details><summary>Who decides the verdict?</summary><p>GenLayer validators. Each one fetches the public sources itself and they have to agree. No person, including us, can set a verdict.</p></details>
+    <details><summary>What if a source is down?</summary><p>That check shows ERROR. An error is never counted as a failure of the work; the round can be repeated.</p></details>
+    <details><summary>Can the builder change the goalposts?</summary><p>Only the place a failing check looks (for example a corrected tag), at most three times, with a written note. The funder cannot amend, and every change is in the history.</p></details>
+    <details><summary>Does it hold or move money?</summary><p>No. It records a verdict. Whatever you do with the verdict, such as releasing a grant payment, happens elsewhere.</p></details>
+    <details><summary>What are the limits?</summary><p>MET means the stated public checks hold, not that the work is good. A file check reads the file as it is now. The record is small while the project is new, and test accounts can be one person. This runs on a test network.</p></details>
+  </section>
+  </main>
 
-  <div class="card">
-    <h2>Transaction</h2>
-    <div class="msg" id="txmsg">Nothing sent yet.</div>
-  </div>
-
-  <p class="small">Limits: a MET verdict says the stated public checks hold, not that the work is good. REPO_FILE reads the file as it is now, not as of the deadline. Source code, tests and evidence: <a href="https://github.com/Oziman13/genlayer-milestone-oracle">github.com/Oziman13/genlayer-milestone-oracle</a></p>
-</main>
-<script src="app.js"></script>
+  <footer>
+    <a href="app.html">App</a> · <a id="repoC" href="#">Contract and tests</a> · <a id="repoA" href="#">Web client</a> · MIT licence
+  </footer>
+</div>
+<script src="config.js"></script>
+<script>document.getElementById("repoC").href=MO_CONFIG.REPO_CONTRACT;document.getElementById("repoA").href=MO_CONFIG.REPO_APP;</script>
 </body>
 </html>

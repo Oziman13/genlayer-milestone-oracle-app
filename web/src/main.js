@@ -4,6 +4,7 @@ import {
 } from "./wallet.js";
 import { computeActions, validateSetup, roleOf, snapshotOf, effectSeen } from "./logic.js";
 import { nextStep } from "./recovery.js";
+import { pickCreated, validAddress, recordState } from "./record.js";
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -12,6 +13,10 @@ const short = a => a ? String(a).slice(0, 8) + "..." + String(a).slice(-4) : "";
 const parse = s => { try { return JSON.parse(s); } catch { return null; } };
 const badge = (el, v) => { el.textContent = v; el.className = "badge " + v; };
 const nowSec = () => Math.floor(Date.now() / 1000);
+
+const cfg = window.MO_CONFIG || {};
+const factory = (new URLSearchParams(location.search).get("factory") || cfg.FACTORY || "").trim();
+const useFactory = validAddress(factory);   // with a factory, new milestones are created (and recorded) through it
 
 const POLL = Number(new URLSearchParams(location.search).get("poll")) || undefined; // test hook: faster polling
 const reader = readClient();
@@ -87,6 +92,7 @@ function renderActions() {
     $("r_" + k).textContent = okNow ? "" : (a[k].ok ? block : a[k].reason);
   }
   $("s_deploy").disabled = busy || !!block;
+  if ($("b_record")) $("b_record").disabled = busy || !!block || !address;
   renderRecovery();
 }
 function renderRecovery() {
@@ -120,6 +126,7 @@ async function load() {
     $("setup").hidden = true;
     $("app").hidden = false;
     $("title").textContent = st.title;
+    $("cardlink").href = "card.html?address=" + $("addr").value.trim() + (useFactory ? "&factory=" + factory : "");
     $("deadline").textContent = `Deadline: end of ${st.deadline_date} (UTC)`;
     badge($("verdict"), st.latest_verdict || "NONE");
     $("att").textContent = (await view("get_attestation")) || "NONE";
@@ -151,11 +158,36 @@ async function load() {
     msg.textContent = "Loaded.";
     try { localStorage.setItem(LAST, $("addr").value.trim()); } catch { /* storage may be blocked */ }
     renderWallet();
+    await refreshRecordBox();
   } catch (e) {
     msg.textContent = "Could not read the contract: " + (e.message || e);
     msg.className = "small err";
   }
 }
+// ---------- delivery record ----------
+async function refreshRecordBox() {
+  const box = $("recordbox");
+  if (!useFactory || !state) { box.hidden = true; return; }
+  let made = false, rec = "NONE";
+  try {
+    const a = $("addr").value.trim();
+    made = await reader.readContract({ address: factory, functionName: "is_factory_milestone", args: [a] });
+    if (made) rec = await reader.readContract({ address: factory, functionName: "get_record", args: [a] });
+  } catch { box.hidden = false; $("recmsg2").textContent = "Could not read the delivery record right now."; $("b_record").hidden = true; return; }
+  const v = recordState(made, state, rec);
+  box.hidden = false;
+  $("recmsg2").textContent = v.text;
+  $("b_record").hidden = !v.canRecord;
+  $("b_record").disabled = busy || !!blockedReason() || !address;
+  const link = $("recordlink"); link.hidden = !v.recorded;
+  link.href = `builder.html?builder=${state.builder}&factory=${factory}`;
+}
+$("b_record").onclick = async () => {
+  const a = $("addr").value.trim();
+  const o = await guard("record", () => wallet.writeContract({ address: factory, functionName: "record", args: [a], value: 0n }), { fn: "record", args: [a], address: factory });
+  if (o && ["APPLIED", "REJECTED_BY_CONTRACT", "NOT_APPLIED", "UNCLEAR"].includes(o.kind)) await refreshRecordBox();
+};
+
 $("load").onclick = load;
 $("refresh").onclick = load;
 
@@ -255,6 +287,14 @@ $("s_deploy").onclick = async () => {
   if (!address) errs.unshift("Connect a wallet first (the connected account becomes the funder).");
   $("s_errs").textContent = errs.join("\n");
   if (errs.length) return;
+  if (useFactory) {
+    const args = [form.builder.toLowerCase(), form.title.trim(), form.deadline, JSON.stringify(form.checks), form.window];
+    const o = await guard("create_milestone", () => wallet.writeContract({ address: factory, functionName: "create_milestone", args, value: 0n }),
+      { fn: "create_milestone", args: [form.builder, form.title.trim(), form.deadline], address: factory, meta: { builder: form.builder.toLowerCase(), title: form.title.trim() } });
+    if (o && o.kind === "APPLIED") await adoptCreated({ account: address, meta: { builder: form.builder.toLowerCase(), title: form.title.trim() } });
+    renderActions();
+    return;
+  }
   let code;
   try {
     const r = await fetch("../contracts/milestone_oracle.py", { cache: "no-store" });
@@ -267,6 +307,22 @@ $("s_deploy").onclick = async () => {
   if (o && o.kind === "APPLIED") await adoptDeployed(o);
   renderActions();
 };
+
+// A factory milestone's address is found by reading the factory's own list and matching funder, builder and
+// title, newest first. It is adopted only after the create transaction is FINALIZED and successful.
+async function adoptCreated(p) {
+  try {
+    const total = Number(JSON.parse(await reader.readContract({ address: factory, functionName: "get_milestones_page", args: [0, 1] })).total);
+    const offset = Math.max(0, total - 50);
+    const page = JSON.parse(await reader.readContract({ address: factory, functionName: "get_milestones_page", args: [offset, 50] }));
+    const hit = pickCreated(page.items, p.account, p.meta.builder, p.meta.title);
+    if (!hit) throw new Error("not listed yet");
+    $("addr").value = hit; await load();
+    say(`Milestone created at ${hit} through the factory.\nShare this link: ${location.origin}${location.pathname}?address=${hit}${new URLSearchParams(location.search).get("factory") ? "&factory=" + factory : ""}`);
+  } catch (e) {
+    say("The milestone was created, but this page could not find its address in the factory list (" + (e.message || e) + "). Open the factory's milestone list in the explorer and paste the address into the Contract box.", true);
+  }
+}
 
 // A deployment's address is adopted only from a FINALIZED, successful transaction.
 async function adoptDeployed(o) {
@@ -284,7 +340,9 @@ async function finishWatch(p, hash) {
   const d = describe(o, p.label, hash);
   say(d.text, d.err);
   if (p.fn === "deploy" && o.kind === "APPLIED") await adoptDeployed(o);
-  else if ($("addr").value) await load();
+  else if (p.fn === "create_milestone" && o.kind === "APPLIED" && p.meta) await adoptCreated(p);
+  else if (p.fn === "record" && $("addr").value) { await load(); }
+  else if ($("addr").value && p.fn !== "create_milestone") await load();
   return o;
 }
 
@@ -328,7 +386,7 @@ async function resume() {
   const p = loadPending();
   if (!p) return;
   // reload recovery works on the contract the transaction was sent to, not whatever the box held
-  if (p.address && $("addr").value.trim().toLowerCase() !== p.address.toLowerCase()) { $("addr").value = p.address; await load(); }
+  if (p.fn !== "create_milestone" && p.fn !== "record" && p.address && $("addr").value.trim().toLowerCase() !== p.address.toLowerCase()) { $("addr").value = p.address; await load(); }
   if (p.account && address && address.toLowerCase() !== p.account.toLowerCase()) say(`Note: this transaction was sent from ${p.account}, but the connected account is ${address}.`);
   busy = true; renderActions();
   try {

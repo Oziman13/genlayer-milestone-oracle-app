@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Deploy the factory | Milestone Oracle</title>
+<link rel="icon" href="logo.png">
+<link rel="stylesheet" href="site.css">
+</head>
+<body>
+<div class="wrap" style="max-width:720px">
+  <header class="top"><a class="brand" href="./"><img src="logo.png" alt="">Milestone Oracle</a><nav class="nav"><a href="app.html">Open the app</a></nav></header>
+  <main><section style="padding-top:12px">
+    <h2>Deploy the milestone factory</h2>
+    <p>One-time setup. The factory keeps one copy of the milestone contract and creates every milestone itself, so the delivery record can trust where each milestone came from. Use a Studio test account, never one that holds real funds.</p>
+    <div class="notice" id="info">Loading the contract sources…</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:16px 0"><button class="btn alt" id="connect" type="button">Connect wallet</button><span class="small" id="who">Not connected.</span></div>
+    <button class="btn" id="deploy" type="button" disabled>Deploy the factory</button>
+    <div class="notice" id="msg" style="margin-top:16px;white-space:pre-wrap;word-break:break-word" aria-live="polite">Nothing sent yet.</div>
+    <div id="result" hidden class="sheet" style="margin-top:16px"><h3>Factory address</h3><p><code id="addr"></code></p><div class="notice" id="verify"></div>
+      <p class="small" style="margin-top:12px">Next: send this address to whoever maintains the page so it can be added to <code>web/config.js</code> as FACTORY.</p></div>
+  </section></main>
+</div>
+<script src="deploy-factory.js"></script>
+</body>
+</html>

@@ -12,6 +12,7 @@ import { fileURLToPath } from "node:url";
 const WEB = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../web");
 const PORT = 8771;
 const FUNDER = "0x" + "a1".repeat(20), BUILDER = "0x" + "b2".repeat(20), OTHER = "0x" + "c3".repeat(20);
+const FACTORY = "0x" + "f1".repeat(20);
 const CONTRACT = "0x" + "d4".repeat(20), NEWC = "0x" + "e5".repeat(20);
 const NOW = Math.floor(Date.now() / 1000);
 
@@ -46,6 +47,7 @@ async function newCase({ state, txScripts = {}, wallet = {}, hasWallet = true, n
   const rpc = { methods: [], state, states: {}, txScripts, nonce: 0, txIdx: {}, sends: [], listed: [], nonceFail: false, onFinal: null, finalSeen: {} };
   await p.exposeFunction("__bumpNonce", () => { rpc.nonce++; });
   await p.route("**/contracts/milestone_oracle.py", r => r.fulfill({ status: 200, contentType: "text/plain", body: "class MilestoneOracle:\n  pass\n" }));
+  await p.route("**/contracts/milestone_factory.py", r => r.fulfill({ status: 200, contentType: "text/plain", body: "class MilestoneFactory:\n  pass\n" }));
   await p.route("https://studio.genlayer.com/**", async r => {
     const req = r.request(); let body = {}; try { body = JSON.parse(req.postData() || "{}"); } catch {}
     if (req.method() === "OPTIONS") return r.fulfill({ status: 204, headers: { "access-control-allow-origin": "*", "access-control-allow-headers": "*", "access-control-allow-methods": "*" } });
@@ -56,10 +58,15 @@ async function newCase({ state, txScripts = {}, wallet = {}, hasWallet = true, n
         const txt = Buffer.from((x.params[0].data || "").replace(/^0x/, ""), "hex").toString("latin1");
         let s = "NONE";
         const to = String(x.params[0].to || "").toLowerCase();
-        if (txt.includes("get_state_json")) s = JSON.stringify(rpc.states[to] || rpc.state);
+        let raw = null;
+        if (txt.includes("get_milestones_page")) s = JSON.stringify(rpc.factoryPage || { total: 0, items: [] });
+        else if (txt.includes("is_factory_milestone")) raw = !!rpc.isFactory;
+        else if (txt.includes("get_record")) s = rpc.recordRaw || "NONE";
+        else if (txt.includes("get_factory_info")) s = JSON.stringify(rpc.factoryInfo || {});
+        else if (txt.includes("get_state_json")) s = JSON.stringify(rpc.states[to] || rpc.state);
         else if (txt.includes("get_attestation")) s = rpc.state.phase === "FINALIZED" ? rpc.state.final_verdict : "NONE";
         else if (txt.includes("get_history_json")) s = JSON.stringify({ action: "ASSESS", verdict: "MET", timestamp: NOW, note: "", caller: FUNDER });
-        return { jsonrpc: "2.0", id: x.id, result: Buffer.from(abi.calldata.encode(s)).toString("hex") };
+        return { jsonrpc: "2.0", id: x.id, result: Buffer.from(abi.calldata.encode(raw === null ? s : raw)).toString("hex") };
       }
       if (x.method === "eth_getTransactionCount") return rpc.nonceFail ? { jsonrpc: "2.0", id: x.id, error: { code: -32000, message: "mock: nonce unavailable" } } : { jsonrpc: "2.0", id: x.id, result: "0x" + rpc.nonce.toString(16) };
       if (x.method === "sim_getTransactionsForAddress") return rpc.listed === null ? { jsonrpc: "2.0", id: x.id, error: { code: -32601, message: "mock: listing unsupported" } } : { jsonrpc: "2.0", id: x.id, result: rpc.listed };
@@ -111,7 +118,7 @@ async function newCase({ state, txScripts = {}, wallet = {}, hasWallet = true, n
       };
     }, { chainId: "0xf22f", accounts: [FUNDER], knownChain: true, ...wallet });
   }
-  const open = async (qs = "") => { await p.goto(`http://localhost:${PORT}/index.html?poll=50${qs}`); };
+  const open = async (qs = "") => { await p.goto(`http://localhost:${PORT}/app.html?poll=50${qs}`); };
   return { p, ctx, rpc, errs, open };
 }
 
@@ -356,7 +363,7 @@ const unlocked = c => c.p.waitForFunction(() => !document.getElementById("b_fin"
   await loaded(c); await connect(c);
   await c.p.click("#b_start");
   ok("start_round: sent with the right function and applied only after FINALIZED+SUCCESS", await waitText(c.p, "#txmsg", /start_round was applied/) && (await dataText(c)).includes("start_round") && (await sendCount(c)) === 1);
-  ok("start_round: the page reloads the state (phase OPEN) and unlocks assess", (await text(c.p, "#phase")) === "OPEN" && await c.p.waitForFunction(() => !document.getElementById("b_assess").disabled, null, { timeout: 5000 }).then(() => true).catch(() => false));
+  ok("start_round: the page reloads the state (phase OPEN) and unlocks assess", await waitText(c.p, "#phase", /^OPEN$/) && await c.p.waitForFunction(() => !document.getElementById("b_assess").disabled, null, { timeout: 5000 }).then(() => true).catch(() => false));
   await c.ctx.close();
 }
 {
@@ -514,6 +521,115 @@ async function ambiguousCase(extra = {}) {
   c.rpc.txScripts[H] = [tx("FINALIZED", "SUCCESS")];
   ok("open transaction: once it is FINALIZED+SUCCESS it is reported, the record is cleared and sends unlock", await waitText(c.p, "#txmsg", /finalize was applied/) && (await pend(c)) === null && await unlocked(c));
   await c.ctx.close();
+}
+
+// --- factory: create through the factory, adopt the address from its list, record a finalized verdict ----------
+const sentData = c => c.p.evaluate(() => { const r = window.__reqs.filter(q => q.method === "eth_sendTransaction").pop(); return r ? JSON.stringify(r.params) : ""; });
+const hasText = async (c, word) => c.p.evaluate(w => { const r = window.__reqs.filter(q => q.method === "eth_sendTransaction").pop(); if (!r) return false; const hex = String(r.params[0].data || "").replace(/^0x/, ""); let t = ""; for (let i = 0; i + 1 < hex.length; i += 2) t += String.fromCharCode(parseInt(hex.slice(i, i + 2), 16)); return t.includes(w); }, word);
+const fillSetup = async c => {
+  await c.p.click("#newms"); await c.p.click("#connect"); await waitText(c.p, "#wstatus", /Connected/);
+  await c.p.fill("#s_builder", BUILDER); await c.p.fill("#s_title", "Demo milestone"); await c.p.fill("#s_deadline", "2026-12-31");
+  await c.p.locator("#s_checks [data-k=repo]").fill("o/r"); await c.p.locator("#s_checks [data-k=tag]").fill("v0.1.0");
+};
+const created = { total: 2, offset: 0, items: [
+  { funder: OTHER, builder: BUILDER, title: "Demo milestone", milestone: "0x" + "99".repeat(20), recorded: false },
+  { funder: FUNDER, builder: BUILDER, title: "Demo milestone", milestone: NEWC, recorded: false }] };
+{
+  const c = await newCase({ state: baseState(), wallet: { accounts: [FUNDER], hash: H }, txScripts: { [H]: [tx("PENDING"), tx("FINALIZED", "SUCCESS", { recipient: FACTORY })] } });
+  c.rpc.factoryPage = created; c.rpc.states[NEWC] = baseState({ title: "Demo milestone" }); c.rpc.isFactory = true;
+  await c.open(`&factory=${FACTORY}`);
+  await fillSetup(c);
+  await c.p.click("#s_deploy");
+  if (process.env.DBG) { await new Promise(r => setTimeout(r, 1500)); console.log("DATA", (await sentData(c)).slice(0, 700)); console.log("MSG", await text(c.p, "#s_errs"), "|", await text(c.p, "#txmsg"), c.errs); }
+  ok("factory: the transaction is a create_milestone call (not a contract deployment)", await c.p.waitForFunction(() => window.__reqs.some(r => r.method === "eth_sendTransaction"), null, { timeout: 8000 }).then(() => true).catch(() => false) && await hasText(c, "create_milestone"));
+  ok("factory: address adopted from the factory list by funder+builder+title (not the other funder's twin)", await c.p.waitForFunction(a => document.getElementById("addr").value.toLowerCase() === a, NEWC, { timeout: 8000 }).then(() => true).catch(() => false));
+  ok("factory: share link keeps the milestone address", await waitText(c.p, "#txmsg", new RegExp("\\?address=" + NEWC)));
+  ok("factory: a not-finalized milestone shows the waiting text and no record button", /Once this milestone is finalized/.test(await text(c.p, "#recmsg2")) && await c.p.locator("#b_record").isHidden());
+  await c.ctx.close();
+}
+{ // created but not found in the list -> nothing adopted, clear message
+  const c = await newCase({ state: baseState(), wallet: { accounts: [FUNDER], hash: H }, txScripts: { [H]: [tx("FINALIZED", "SUCCESS", { recipient: FACTORY })] } });
+  c.rpc.factoryPage = { total: 0, items: [] };
+  await c.open(`&factory=${FACTORY}`); await fillSetup(c); await c.p.click("#s_deploy");
+  ok("factory: milestone not in the list -> message, address NOT adopted", await waitText(c.p, "#txmsg", /could not find its address/) && (await c.p.inputValue("#addr")) === "");
+  await c.ctx.close();
+}
+{ // finalized + factory milestone + not yet recorded -> record button, signed, then link
+  const c = await newCase({ state: baseState({ phase: "FINALIZED", finalized: 1, final_verdict: "MET", candidate: "MET" }), wallet: { accounts: [OTHER], hash: H }, txScripts: { [H]: [tx("FINALIZED", "SUCCESS", { recipient: FACTORY })] } });
+  c.rpc.isFactory = true;
+  await c.open(`&factory=${FACTORY}&address=${CONTRACT}`);
+  await c.p.waitForSelector("#recordbox", { state: "visible" });
+  ok("record: finalized factory milestone offers 'Add to delivery record'", await c.p.locator("#b_record").isVisible() && /Anyone can add/.test(await text(c.p, "#recmsg2")));
+  await c.p.click("#connect"); await waitText(c.p, "#wstatus", /Connected/);
+  ok("record: a stranger (not funder/builder) may press it", await c.p.locator("#b_record").isEnabled());
+  c.rpc.recordRaw = JSON.stringify({ verdict: "MET" });
+  await c.p.click("#b_record");
+  ok("record: sends a record call and reports it applied", await waitText(c.p, "#txmsg", /record was applied/) && await hasText(c, "record"));
+  ok("record: afterwards shows 'On the delivery record' and a link to the builder page", await waitText(c.p, "#recmsg2", /On the delivery record/) && (await c.p.getAttribute("#recordlink", "href")).includes("builder.html?builder=" + BUILDER));
+  await c.ctx.close();
+}
+{ // a milestone deployed outside the factory can never be recorded
+  const c = await newCase({ state: baseState({ phase: "FINALIZED", finalized: 1, final_verdict: "MET" }), wallet: { accounts: [OTHER] } });
+  c.rpc.isFactory = false;
+  await c.open(`&factory=${FACTORY}&address=${CONTRACT}`);
+  await c.p.waitForSelector("#recordbox", { state: "visible" });
+  ok("record: look-alike (not from the factory) -> explained, no button", /not created through the factory/.test(await text(c.p, "#recmsg2")) && await c.p.locator("#b_record").isHidden());
+  await c.ctx.close();
+}
+{ // no factory configured: the old direct-deploy flow and no record box
+  const c = await newCase({ state: baseState() });
+  await c.open(`&address=${CONTRACT}`);
+  await c.p.waitForSelector("#title", { state: "visible" });
+  ok("no factory: record box stays hidden", await c.p.locator("#recordbox").isHidden());
+  await c.ctx.close();
+}
+{ // reload recovery of a create_milestone transaction adopts the milestone from the factory list
+  const c = await newCase({ state: baseState({ title: "Old milestone" }), wallet: { accounts: [FUNDER] }, txScripts: { [H]: [tx("PENDING"), tx("FINALIZED", "SUCCESS", { recipient: FACTORY })] } });
+  c.rpc.factoryPage = created; c.rpc.states[NEWC] = baseState({ title: "Fresh milestone" });
+  await seed(c, { stage: "sent", hash: H, label: "create_milestone", fn: "create_milestone", args: [BUILDER, "Demo milestone"], address: FACTORY, meta: { builder: BUILDER, title: "Demo milestone" }, account: FUNDER, chainId: "0xf22f", nonceBefore: 0, at: Date.now() });
+  await c.open(`&factory=${FACTORY}&address=${CONTRACT}`);
+  ok("factory recovery: a finalized create_milestone is adopted after a reload", await c.p.waitForFunction(a => document.getElementById("addr").value.toLowerCase() === a, NEWC, { timeout: 8000 }).then(() => true).catch(() => false) && await waitText(c.p, "#title", /Fresh milestone/) && (await pend(c)) === null);
+  await c.ctx.close();
+}
+
+// --- deploy-factory page -------------------------------------------------------------------------------
+{
+  const { createHash } = await import("node:crypto");
+  const sha = "0x" + createHash("sha256").update("class MilestoneOracle:\n  pass\n").digest("hex");
+  const openDF = async (c) => { await c.p.goto(`http://localhost:${PORT}/deploy-factory.html`); await c.p.waitForFunction(() => /SHA-256/.test(document.getElementById("info").textContent)); };
+  { // happy path: signed by the wallet, address read from the receipt, hash verified
+    const c = await newCase({ state: baseState(), wallet: { accounts: [FUNDER], hash: H }, txScripts: { [H]: [tx("PENDING"), tx("FINALIZED", "SUCCESS", { recipient: FACTORY })] } });
+    c.rpc.factoryInfo = { code_sha256: sha, milestones: 0 };
+    await openDF(c);
+    ok("deploy-factory: shows the sizes and the SHA-256 of the milestone source", (await text(c.p, "#info")).includes(sha));
+    ok("deploy-factory: deploy button locked until a wallet is connected", await c.p.locator("#deploy").isDisabled());
+    await c.p.click("#connect"); await waitText(c.p, "#who", /Connected/);
+    await c.p.click("#deploy");
+    ok("deploy-factory: signed by the wallet", await c.p.waitForFunction(() => window.__reqs.some(r => r.method === "eth_sendTransaction"), null, { timeout: 8000 }).then(() => true).catch(() => false));
+    ok("deploy-factory: address shown only after FINALIZED+SUCCESS", await c.p.waitForFunction(a => document.getElementById("addr").textContent.toLowerCase() === a, FACTORY, { timeout: 8000 }).then(() => true).catch(() => false));
+    ok("deploy-factory: the factory's code hash is checked against the shown source", await waitText(c.p, "#verify", /Verified/));
+    ok("deploy-factory: no page errors", c.errs.length === 0, c.errs.join("|"));
+    await c.ctx.close();
+  }
+  { // wrong hash -> loud warning
+    const c = await newCase({ state: baseState(), wallet: { accounts: [FUNDER], hash: H }, txScripts: { [H]: [tx("FINALIZED", "SUCCESS", { recipient: FACTORY })] } });
+    c.rpc.factoryInfo = { code_sha256: "0x" + "00".repeat(32) };
+    await openDF(c); await c.p.click("#connect"); await waitText(c.p, "#who", /Connected/); await c.p.click("#deploy");
+    ok("deploy-factory: a factory with different code is flagged, not trusted", await waitText(c.p, "#verify", /WARNING/));
+    await c.ctx.close();
+  }
+  { // refused by the network -> no address
+    const c = await newCase({ state: baseState(), wallet: { accounts: [FUNDER], hash: H }, txScripts: { [H]: [tx("FINALIZED", "ERROR", { recipient: FACTORY })] } });
+    await openDF(c); await c.p.click("#connect"); await waitText(c.p, "#who", /Connected/); await c.p.click("#deploy");
+    ok("deploy-factory: a refused deployment shows no address", await waitText(c.p, "#msg", /not deployed/) && await c.p.locator("#result").isHidden());
+    await c.ctx.close();
+  }
+  { // user rejects in the wallet
+    const c = await newCase({ state: baseState(), wallet: { accounts: [FUNDER], sendMode: "reject" } });
+    await openDF(c); await c.p.click("#connect"); await waitText(c.p, "#who", /Connected/); await c.p.click("#deploy");
+    ok("deploy-factory: declining in the wallet sends nothing and says so", await waitText(c.p, "#msg", /not deployed|declined/i) && await c.p.locator("#result").isHidden() && (await c.p.locator("#deploy").isEnabled()));
+    await c.ctx.close();
+  }
 }
 
 await browser.close(); srv.close();
