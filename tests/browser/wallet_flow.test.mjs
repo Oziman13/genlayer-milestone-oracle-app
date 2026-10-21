@@ -47,6 +47,7 @@ async function newCase({ state, txScripts = {}, wallet = {}, hasWallet = true, n
   const rpc = { methods: [], state, states: {}, txScripts, nonce: 0, txIdx: {}, sends: [], listed: [], nonceFail: false, onFinal: null, finalSeen: {} };
   await p.exposeFunction("__bumpNonce", () => { rpc.nonce++; });
   await p.route("**/contracts/milestone_oracle.py", r => r.fulfill({ status: 200, contentType: "text/plain", body: "class MilestoneOracle:\n  pass\n" }));
+  await p.route("**/config.js", r => r.fulfill({ status: 200, contentType: "text/javascript", body: 'window.MO_CONFIG={FACTORY:"",LIVE_EXAMPLE:"",REPO_CONTRACT:"https://github.com/Oziman13/genlayer-milestone-oracle",REPO_APP:"https://github.com/Oziman13/genlayer-milestone-oracle-app"};' }));
   await p.route("**/contracts/milestone_factory.py", r => r.fulfill({ status: 200, contentType: "text/plain", body: "class MilestoneFactory:\n  pass\n" }));
   await p.route("https://studio.genlayer.com/**", async r => {
     const req = r.request(); let body = {}; try { body = JSON.parse(req.postData() || "{}"); } catch {}
@@ -59,6 +60,7 @@ async function newCase({ state, txScripts = {}, wallet = {}, hasWallet = true, n
         let s = "NONE";
         const to = String(x.params[0].to || "").toLowerCase();
         let raw = null;
+        if (rpc.stateFailures && rpc.stateFailures[to] > 0 && txt.includes("get_state_json")) { rpc.stateFailures[to]--; return { jsonrpc: "2.0", id: x.id, error: { code: -32000, message: "mock: contract not deployed yet" } }; }
         if (txt.includes("get_milestones_page")) s = JSON.stringify(rpc.factoryPage || { total: 0, items: [] });
         else if (txt.includes("is_factory_milestone")) raw = !!rpc.isFactory;
         else if (txt.includes("get_record")) s = rpc.recordRaw || "NONE";
@@ -630,6 +632,27 @@ const created = { total: 2, offset: 0, items: [
     ok("deploy-factory: declining in the wallet sends nothing and says so", await waitText(c.p, "#msg", /not deployed|declined/i) && await c.p.locator("#result").isHidden() && (await c.p.locator("#deploy").isEnabled()));
     await c.ctx.close();
   }
+}
+
+{ // the new contract is not readable right away: the page waits and never shows the old milestone meanwhile
+  const c = await newCase({ state: baseState({ title: "Old milestone" }), wallet: { accounts: [FUNDER], hash: H }, txScripts: { [H]: [tx("FINALIZED", "SUCCESS", { recipient: FACTORY })] } });
+  c.rpc.factoryPage = created; c.rpc.states[NEWC] = baseState({ title: "Fresh milestone" }); c.rpc.isFactory = true; c.rpc.stateFailures = { [NEWC]: 3 };
+  await c.open(`&factory=${FACTORY}&address=${CONTRACT}`);
+  await c.p.waitForSelector("#title", { state: "visible" });
+  ok("late contract: the old milestone is loaded first", (await text(c.p, "#title")) === "Old milestone");
+  await fillSetup(c); await c.p.click("#s_deploy");
+  ok("late contract: after retries the NEW milestone is shown and success is reported", await waitText(c.p, "#title", /Fresh milestone/) && await waitText(c.p, "#txmsg", /Milestone created at .* through the factory/));
+  ok("late contract: the old milestone never stays on screen under the new address", (await c.p.inputValue("#addr")).toLowerCase() === NEWC);
+  await c.ctx.close();
+}
+{ // never readable: honest message, no stale data, no success claim
+  const c = await newCase({ state: baseState({ title: "Old milestone" }), wallet: { accounts: [FUNDER], hash: H }, txScripts: { [H]: [tx("FINALIZED", "SUCCESS", { recipient: FACTORY })] } });
+  c.rpc.factoryPage = created; c.rpc.states[NEWC] = baseState({ title: "Fresh milestone" }); c.rpc.isFactory = true; c.rpc.stateFailures = { [NEWC]: 1000 };
+  await c.open(`&factory=${FACTORY}&address=${CONTRACT}`);
+  await c.p.waitForSelector("#title", { state: "visible" });
+  await fillSetup(c); await c.p.click("#s_deploy");
+  ok("unreadable contract: says created-but-not-readable, no success claim, old data hidden", await waitText(c.p, "#txmsg", /not readable yet/, 15000) && !/through the factory\.\nShare/.test(await text(c.p, "#txmsg")) && await c.p.locator("#app").isHidden());
+  await c.ctx.close();
 }
 
 await browser.close(); srv.close();

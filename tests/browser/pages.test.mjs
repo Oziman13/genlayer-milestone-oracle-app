@@ -55,6 +55,7 @@ const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PAT
 async function page(summary, extra = {}) {
   const p = await (await browser.newContext()).newPage();
   const errs = []; p.on("pageerror", e => errs.push(String(e)));
+  await p.route("**/config.js", r => r.fulfill({ status: 200, contentType: "text/javascript", body: 'window.MO_CONFIG={FACTORY:"",LIVE_EXAMPLE:"",REPO_CONTRACT:"https://github.com/Oziman13/genlayer-milestone-oracle",REPO_APP:"https://github.com/Oziman13/genlayer-milestone-oracle-app"};' }));
   await p.route("https://fonts.googleapis.com/**", r => r.fulfill({ status: 200, contentType: "text/css", body: "" }));
   await p.route("https://studio.genlayer.com/**", async r => {
     const req = r.request(); let body = {}; try { body = JSON.parse(req.postData() || "{}"); } catch {}
@@ -175,6 +176,14 @@ const M = "0x" + "d4".repeat(20);
   await p.goto(url("card.html"));
   await p.waitForSelector("#card .notice");
   ok("card: missing address explains how to open it", (await p.textContent("#card")).includes("?address=0x"));
+  await p.close();
+}
+// ---- diagnose page (read-only report)
+{
+  const { p, errs } = await page("{}", { state: st(), att: "MET" });
+  await p.goto(url(`diagnose.html?factory=${FACTORY}`));
+  await p.waitForFunction(() => /Done\./.test(document.getElementById("out").textContent), null, { timeout: 8000 });
+  ok("diagnose: reports on the factory and sends nothing", (await p.textContent("#out")).includes("== Factory") && (await p.textContent("#out")).includes("open this page with ?account=") && errs.length === 0, errs.join("|"));
   await p.close();
 }
 await browser.close(); srv.close();

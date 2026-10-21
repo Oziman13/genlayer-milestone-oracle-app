@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Wallet-based web client for the Milestone Oracle Intelligent Contract on GenLayer Studionet",
   "scripts": {
-    "build": "esbuild web/src/main.js --bundle --format=iife --minify --outfile=web/app.js && esbuild web/src/builder.js --bundle --format=iife --minify --outfile=web/builder.js && esbuild web/src/card.js --bundle --format=iife --minify --outfile=web/card.js && esbuild web/src/deployfactory.js --bundle --format=iife --minify --outfile=web/deploy-factory.js",
+    "build": "esbuild web/src/main.js --bundle --format=iife --minify --outfile=web/app.js && esbuild web/src/builder.js --bundle --format=iife --minify --outfile=web/builder.js && esbuild web/src/card.js --bundle --format=iife --minify --outfile=web/card.js && esbuild web/src/deployfactory.js --bundle --format=iife --minify --outfile=web/deploy-factory.js && esbuild web/src/diagnose.js --bundle --format=iife --minify --outfile=web/diagnose.js",
     "test": "node tests/browser/wallet_flow.test.mjs && node tests/browser/pages.test.mjs"
   },
   "dependencies": {

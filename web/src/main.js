@@ -159,9 +159,13 @@ async function load() {
     try { localStorage.setItem(LAST, $("addr").value.trim()); } catch { /* storage may be blocked */ }
     renderWallet();
     await refreshRecordBox();
+    return true;
   } catch (e) {
+    // never leave the previous milestone on screen under a new address
+    state = null; $("app").hidden = true; $("recordbox").hidden = true; renderWallet();
     msg.textContent = "Could not read the contract: " + (e.message || e);
     msg.className = "small err";
+    return false;
   }
 }
 // ---------- delivery record ----------
@@ -317,8 +321,16 @@ async function adoptCreated(p) {
     const page = JSON.parse(await reader.readContract({ address: factory, functionName: "get_milestones_page", args: [offset, 50] }));
     const hit = pickCreated(page.items, p.account, p.meta.builder, p.meta.title);
     if (!hit) throw new Error("not listed yet");
-    $("addr").value = hit; await load();
-    say(`Milestone created at ${hit} through the factory.\nShare this link: ${location.origin}${location.pathname}?address=${hit}${new URLSearchParams(location.search).get("factory") ? "&factory=" + factory : ""}`);
+    $("addr").value = hit;
+    // a contract deployed by another contract becomes readable a little after the creating transaction: wait for it
+    let loaded = false;
+    for (let i = 0; i < 18 && !loaded; i++) {
+      if (i) { say(`Milestone created at ${hit}. Waiting for the new contract to become readable (${i}/18)...`); await new Promise(r => setTimeout(r, POLL || 5000)); }
+      loaded = await load();
+    }
+    const link = `${location.origin}${location.pathname}?address=${hit}${new URLSearchParams(location.search).get("factory") ? "&factory=" + factory : ""}`;
+    if (loaded) say(`Milestone created at ${hit} through the factory.\nShare this link: ${link}`);
+    else say(`Milestone created at ${hit}, but its state is not readable yet, so nothing is shown. Press "Load state" again in a minute.\nLink: ${link}`, true);
   } catch (e) {
     say("The milestone was created, but this page could not find its address in the factory list (" + (e.message || e) + "). Open the factory's milestone list in the explorer and paste the address into the Contract box.", true);
   }
