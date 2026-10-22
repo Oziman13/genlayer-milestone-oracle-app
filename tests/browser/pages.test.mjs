@@ -1,6 +1,7 @@
 // Tests for the landing page and the builder record page (mock Studio RPC; no real network).
 import { chromium } from "playwright-core";
 import { abi } from "genlayer-js";
+import { getAddress } from "viem";
 import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
@@ -91,9 +92,9 @@ const url = q => `http://localhost:${PORT}/${q}`;
   ok("landing: no empty counters or invented numbers on the page", !/\b0 (milestones|builders)\b/.test(await p.textContent("body")));
   ok("landing: footer links filled from config", (await p.getAttribute("#repoC", "href")).includes("github.com/Oziman13/genlayer-milestone-oracle"));
   ok("landing: no page errors", errs.length === 0, errs.join("|"));
-  await p.goto(url("index.html?address=0xb222ae7ee55C8E71f11A6d97c49932DEA1177786"));
-  await p.waitForURL(/app\.html\?address=0xb222/);
-  ok("landing: old ?address= links still open the app", p.url().includes("/app.html?address=0xb222"));
+  await p.goto(url("index.html?address=0xDf63AB2C788c452e5E0088E6767Fe78e6e93ce30"));
+  await p.waitForURL(/app\.html\?address=0xDf63/);
+  ok("landing: old ?address= links still open the app", p.url().includes("/app.html?address=0xDf63"));
   await p.close();
 }
 // ---- builder page
@@ -103,7 +104,7 @@ const url = q => `http://localhost:${PORT}/${q}`;
   await p.waitForSelector(".counts");
   const t = await p.textContent("#out");
   ok("builder: counts recomputed from rows (2 recorded, 1 MET, 1 NOT_MET)", /2ontherecord/.test(t.replace(/\s/g, "")) && t.includes("NOT_MET") && t.includes("MET"));
-  ok("builder: rows link to the milestone in the app", (await p.locator("#out table a").first().getAttribute("href")).endsWith("app.html?address=" + M1));
+  ok("builder: rows link to the milestone in the app", (await p.locator("#out table a").first().getAttribute("href")).endsWith("app.html?address=" + getAddress(M1)));
   ok("builder: states what is NOT counted (created 3, recorded 2)", t.includes("1 more is not finalized or not recorded yet"));
   ok("builder: embed snippet offered", (await p.textContent("#out details pre")).includes("badge=1"));
   ok("builder: no page errors", errs.length === 0, errs.join("|"));
@@ -149,7 +150,7 @@ const M = "0x" + "d4".repeat(20);
   ok("card: finalized MET shows the stamp, title, checks and who is who", (await p.textContent(".stamp")) === "MET" && t.includes("Ship v1") && t.includes("release") && t.includes("PASS") && t.includes("not checked"));
   ok("card: shows the last real history event", t.includes("FINALIZE") && t.includes("UTC"));
   ok("card: recorded milestone links to the builder record", t.includes("On the delivery record") && (await p.locator("#card a", { hasText: "builder's record" }).getAttribute("href")).includes("builder.html?builder=" + B));
-  ok("card: states the limits, links to the full history", t.includes("does not say the work is good") && (await p.locator("#card a", { hasText: "full history" }).getAttribute("href")).includes("app.html?address=" + M));
+  ok("card: states the limits, links to the full history", t.includes("does not say the work is good") && (await p.locator("#card a", { hasText: "full history" }).getAttribute("href")).includes("app.html?address=" + getAddress(M)));
   ok("card: title carries the verdict", (await p.title()).startsWith("MET: Ship v1"));
   ok("card: no page errors", errs.length === 0, errs.join("|"));
   await p.close();
