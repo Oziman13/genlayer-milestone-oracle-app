@@ -1,10 +1,10 @@
 import { readClient, EXPLORER } from "./wallet.js";
-import { cardView, validAddress } from "./record.js";
+import { cardView, validAddress, checksum } from "./record.js";
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const q = new URLSearchParams(location.search);
-const address = (q.get("address") || "").trim();
+const address = checksum(q.get("address") || "");
 const cfg = window.MO_CONFIG || {};
 const factory = (q.get("factory") || cfg.FACTORY || "").trim();
 const short = a => a ? a.slice(0, 8) + "…" + a.slice(-4) : "";

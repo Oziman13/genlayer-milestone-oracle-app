@@ -1,5 +1,5 @@
 import { readClient, EXPLORER } from "./wallet.js";
-import { summaryView, validAddress } from "./record.js";
+import { summaryView, validAddress, checksum } from "./record.js";
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -26,7 +26,7 @@ async function lookup() {
   const v = summaryView(raw);
   if (!v) return show("The factory returned something this page cannot read.", "notice err");
   const href = new URL("app.html", location.href);
-  const rows = v.rows.map(r => `<tr><td><a href="${esc(href.pathname + "?address=" + r.milestone)}">${esc(r.title)}</a></td><td><span class="tag ${esc(r.verdict)}">${esc(r.verdict)}</span></td><td>${esc(utc(r.finalized_at))}</td><td>${r.amendments}</td><td class="mono">${esc(short(r.funder))}</td></tr>`).join("");
+  const rows = v.rows.map(r => `<tr><td><a href="${esc(href.pathname + "?address=" + checksum(r.milestone))}">${esc(r.title)}</a></td><td><span class="tag ${esc(r.verdict)}">${esc(r.verdict)}</span></td><td>${esc(utc(r.finalized_at))}</td><td>${r.amendments}</td><td class="mono">${esc(short(r.funder))}</td></tr>`).join("");
   if (!v.recorded) {
     return show(`<b class="mono">${esc(short(v.builder))}</b> has ${v.created ? v.created + " milestone" + (v.created > 1 ? "s" : "") + " that " + (v.created > 1 ? "are" : "is") + " not on the record yet. A milestone is added once it is finalized and someone records it." : "no milestones from this factory."}`);
   }

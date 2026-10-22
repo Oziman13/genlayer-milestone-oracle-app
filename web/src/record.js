@@ -1,3 +1,9 @@
+import { getAddress } from "viem";
+
+// The network looks contracts up by their checksum spelling (mixed upper/lower case); an all-lowercase spelling is not found.
+// The factory stores addresses in lowercase, so every page converts before it reads or writes.
+export const checksum = a => { try { return getAddress(String(a).trim().toLowerCase()); } catch { return String(a ?? "").trim(); } };
+
 // Pure helpers for the Delivery Record pages (no network, no DOM): easy to test.
 export const validAddress = s => typeof s === "string" && /^0x[0-9a-fA-F]{40}$/.test(s.trim());
 

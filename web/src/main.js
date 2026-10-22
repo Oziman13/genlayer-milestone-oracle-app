@@ -4,7 +4,7 @@ import {
 } from "./wallet.js";
 import { computeActions, validateSetup, roleOf, snapshotOf, effectSeen } from "./logic.js";
 import { nextStep } from "./recovery.js";
-import { pickCreated, validAddress, recordState } from "./record.js";
+import { pickCreated, validAddress, recordState, checksum } from "./record.js";
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -112,7 +112,7 @@ function describePending(p) {
 $("acheck").onchange = renderActions;
 
 async function view(fn, args = []) {
-  return await reader.readContract({ address: $("addr").value.trim(), functionName: fn, args });
+  return await reader.readContract({ address: checksum($("addr").value), functionName: fn, args });
 }
 
 async function load() {
@@ -126,7 +126,7 @@ async function load() {
     $("setup").hidden = true;
     $("app").hidden = false;
     $("title").textContent = st.title;
-    $("cardlink").href = "card.html?address=" + $("addr").value.trim() + (useFactory ? "&factory=" + factory : "");
+    $("cardlink").href = "card.html?address=" + checksum($("addr").value) + (useFactory ? "&factory=" + factory : "");
     $("deadline").textContent = `Deadline: end of ${st.deadline_date} (UTC)`;
     badge($("verdict"), st.latest_verdict || "NONE");
     $("att").textContent = (await view("get_attestation")) || "NONE";
@@ -174,7 +174,7 @@ async function refreshRecordBox() {
   if (!useFactory || !state) { box.hidden = true; return; }
   let made = false, rec = "NONE";
   try {
-    const a = $("addr").value.trim();
+    const a = checksum($("addr").value);
     made = await reader.readContract({ address: factory, functionName: "is_factory_milestone", args: [a] });
     if (made) rec = await reader.readContract({ address: factory, functionName: "get_record", args: [a] });
   } catch { box.hidden = false; $("recmsg2").textContent = "Could not read the delivery record right now."; $("b_record").hidden = true; return; }
@@ -187,7 +187,7 @@ async function refreshRecordBox() {
   link.href = `builder.html?builder=${state.builder}&factory=${factory}`;
 }
 $("b_record").onclick = async () => {
-  const a = $("addr").value.trim();
+  const a = checksum($("addr").value);
   const o = await guard("record", () => wallet.writeContract({ address: factory, functionName: "record", args: [a], value: 0n }), { fn: "record", args: [a], address: factory });
   if (o && ["APPLIED", "REJECTED_BY_CONTRACT", "NOT_APPLIED", "UNCLEAR"].includes(o.kind)) await refreshRecordBox();
 };
@@ -239,7 +239,7 @@ async function guard(fn, build, remember) {
 }
 
 async function sendCall(fn, args) {
-  const addr = $("addr").value.trim();
+  const addr = checksum($("addr").value);
   const o = await guard(fn, () => wallet.writeContract({ address: addr, functionName: fn, args, value: 0n }), { fn, args, address: addr, snapshot: snapshotOf(state) });
   if (o && ["APPLIED", "REJECTED_BY_CONTRACT", "NOT_APPLIED", "UNCLEAR"].includes(o.kind)) await load();
   renderActions();
@@ -321,15 +321,15 @@ async function adoptCreated(p) {
     const page = JSON.parse(await reader.readContract({ address: factory, functionName: "get_milestones_page", args: [offset, 50] }));
     const hit = pickCreated(page.items, p.account, p.meta.builder, p.meta.title);
     if (!hit) throw new Error("not listed yet");
-    $("addr").value = hit;
+    $("addr").value = checksum(hit);
     // a contract deployed by another contract becomes readable a little after the creating transaction: wait for it
     let loaded = false;
     for (let i = 0; i < 18 && !loaded; i++) {
       if (i) { say(`Milestone created at ${hit}. Waiting for the new contract to become readable (${i}/18)...`); await new Promise(r => setTimeout(r, POLL || 5000)); }
       loaded = await load();
     }
-    const link = `${location.origin}${location.pathname}?address=${hit}${new URLSearchParams(location.search).get("factory") ? "&factory=" + factory : ""}`;
-    if (loaded) say(`Milestone created at ${hit} through the factory.\nShare this link: ${link}`);
+    const link = `${location.origin}${location.pathname}?address=${checksum(hit)}${new URLSearchParams(location.search).get("factory") ? "&factory=" + factory : ""}`;
+    if (loaded) say(`Milestone created at ${checksum(hit)} through the factory.\nShare this link: ${link}`);
     else say(`Milestone created at ${hit}, but its state is not readable yet, so nothing is shown. Press "Load state" again in a minute.\nLink: ${link}`, true);
   } catch (e) {
     say("The milestone was created, but this page could not find its address in the factory list (" + (e.message || e) + "). Open the factory's milestone list in the explorer and paste the address into the Contract box.", true);
