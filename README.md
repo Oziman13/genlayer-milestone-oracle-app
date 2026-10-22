@@ -51,12 +51,27 @@ creates, asks for or stores a private key.
 * **Run the tests** (Node 20+): `npm ci`, then `npx playwright-core install chromium`, then `npm test`
   (set `CHROMIUM_PATH` to use an existing Chromium). `npm run build` rebuilds `web/app.js` from `web/src`.
 
+## Live run of the factory and the delivery record (Studionet, 2026-10-22)
+
+* Factory `0x123352e162Fa441Ba1C4252662A7d00EC05fb737` (v0.1.1, deployed from the page, code hash verified by the page).
+* A milestone created through it, `0xDf63AB2C788c452e5E0088E6767Fe78e6e93ce30`, was run start, assess (3 of 3 checks PASS),
+  finalize (MET) and then recorded; the builder page shows 1 on the record, 1 MET. Details and timestamps:
+  `evidence/factory-live-run-studionet.txt`. Two Studio test accounts of one person (funder and builder), so this shows the
+  mechanics, not an independent attestation.
+* Why v0.1.1: v0.1.0 read the milestone with the "latest final" state, which did not answer on Studionet (the record
+  transaction ended LEADER_TIMEOUT twice). A small probe contract showed the default and non-final reads answer in about
+  1.5 s while the final read timed out; v0.1.1 uses the default read. See `evidence/read-probe-studionet.txt`.
+  Because it trusts the milestone's own FINALIZED phase, not the network's finality of the state read, a record is only as
+  final as the network's accepted state.
+* Addresses: Studionet looks a contract up by its EIP-55 (mixed-case) address, the factory stores lower-case ones, so the
+  pages convert every address before reading or linking. A lower-case address typed by hand is converted too.
+
 ## Limits
 
 * Tests use a mock wallet and mock Studio RPC; they do not prove real MetaMask or Studionet behaviour.
 * A real Studionet run through this page (deploy, start, assess, finalize with MetaMask) is recorded in the contract
   repository: https://github.com/Oziman13/genlayer-milestone-oracle/blob/main/evidence/live-run-1.txt
-  Demo instance: https://oziman13.github.io/genlayer-milestone-oracle-app/web/?address=0xb222ae7ee55C8E71f11A6d97c49932DEA1177786
+  Demo instance: https://oziman13.github.io/genlayer-milestone-oracle-app/web/?address=0xDf63AB2C788c452e5E0088E6767Fe78e6e93ce30
   (two Studio test accounts of one person, so it shows the mechanics, not an independent attestation).
 * The recovery paths (ambiguous send, reload while signing, several matching transactions) were exercised with mocks
   only. The shape of the node's per-account transaction listing (`sim_getTransactionsForAddress`) was not verified
