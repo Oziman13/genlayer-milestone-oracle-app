@@ -7,6 +7,7 @@
 <meta name="description" content="Public checks, validator consensus and a lasting delivery record for every milestone. Runs on GenLayer Studionet.">
 <link rel="icon" href="logo.png">
 <link rel="stylesheet" href="site.css">
+<link rel="stylesheet" href="landing.css">
 <script>
   // Old links (?address=0x...) opened the app directly; keep them working.
   if (new URLSearchParams(location.search).has("address")) location.replace("app.html" + location.search);
@@ -24,33 +25,65 @@
   <main>
   <div class="hero">
     <div>
+      <p class="eyebrow">GenLayer · Studionet · holds no funds</p>
       <h1>Did they deliver?</h1>
       <p class="lead">Name the checks before the work starts. Validators read the public evidence, the builder gets a fair window to answer, and the verdict stays on the record.</p>
       <div class="btns">
         <a class="btn" href="app.html">Set up a milestone</a>
-        <a class="btn alt" href="app.html?address=0xb222ae7ee55C8E71f11A6d97c49932DEA1177786">Read a real verdict</a>
+        <a class="btn alt" id="readlink" href="app.html?address=0xDf63AB2C788c452e5E0088E6767Fe78e6e93ce30">Read a real verdict</a>
       </div>
-      <p class="small" style="margin-top:16px;color:var(--muted);font-size:14px">Live on GenLayer Studionet (test network). Holds no funds.</p>
+      <p style="margin-top:16px;color:var(--muted);font-size:14px">Test network. Reading needs no wallet.</p>
     </div>
 
-    <figure class="slip" style="margin:0" aria-label="Rows from our own test run on Studionet">
+    <div>
+    <div class="live" id="live"><i></i><span> Snapshot of the 22 Oct run (live read pending)</span></div>
+    <figure class="slip" id="slip" style="margin:0" aria-label="Rows from our own test run on Studionet">
       <span class="stamp MET">MET</span>
       <h3>Our own test run</h3>
-      <div class="meta">Studionet, 14 Oct 2026. Funder and builder were two of our own test accounts.</div>
-      <div class="row"><time>08:57:24</time><span>Round started</span><span class="tag NONE">START</span></div>
-      <div class="row"><time>08:58:23</time><span>Release, README and live page checked</span><span class="tag MET">3 of 3 PASS</span></div>
-      <div class="row"><time>09:03:41</time><span>Challenge window over, verdict finalized</span><span class="tag FINALIZED">FINAL</span></div>
-      <div class="meta" style="margin:12px 0 0">Contract <code>0xb222…7786</code></div>
+      <div class="meta" id="slipmeta">Studionet, 22 Oct 2026. Funder and builder were two of our own test accounts.</div>
+      <div id="sliprows">
+      <div class="row"><time>start</time><span>Round started</span><span class="tag NONE">START</span></div>
+      <div class="row"><time>assess</time><span>README, live site and agent page read</span><span class="tag MET">3 of 3 PASS</span></div>
+      <div class="row"><time>final</time><span>Challenge window over, verdict finalized</span><span class="tag FINALIZED">FINAL</span></div>
+      </div>
+      <div class="chk3" id="slipchecks"></div>
+      <div class="meta" style="margin:12px 0 0">Contract <code id="slipaddr">0xDf63…e30</code></div>
     </figure>
+    </div>
   </div>
 
   <section id="how">
+    <p class="eyebrow">How it works</p>
     <h2>One milestone, four moves</h2>
-    <div class="grid" style="margin-top:22px">
-      <div class="step"><h3>1. The funder writes the checks</h3><p>A release tag, a file that must say something, a page that must be live, a claim a page must support. All of it public, all of it fixed up front.</p></div>
-      <div class="step"><h3>2. The builder ships</h3><p>No account with the funder is needed to look at the work. Anyone can open the milestone and see what is being checked.</p></div>
-      <div class="step"><h3>3. Validators read the evidence</h3><p>Each validator fetches the sources itself. Plain facts must match exactly; a failing check is shown, never hidden.</p></div>
-      <div class="step"><h3>4. A window, then a verdict</h3><p>The builder can point a failing check at the right place, only that. After the window anyone can finalize.</p></div>
+    <div class="stepper" id="stepper">
+      <div class="tabs" role="tablist" aria-label="Steps">
+        <button class="tab" role="tab" aria-selected="true" aria-controls="p1" id="t1" type="button"><b>1</b>Write the checks</button>
+        <button class="tab" role="tab" aria-selected="false" aria-controls="p2" id="t2" type="button"><b>2</b>Ship the work</button>
+        <button class="tab" role="tab" aria-selected="false" aria-controls="p3" id="t3" type="button"><b>3</b>Validators read</button>
+        <button class="tab" role="tab" aria-selected="false" aria-controls="p4" id="t4" type="button"><b>4</b>Window, then verdict</button>
+      </div>
+      <div>
+        <div class="panel" id="p1" role="tabpanel" aria-labelledby="t1"><h3>The funder writes the checks</h3><p>A release tag, a file that must say something, a page that must be live, or a claim a page must support. All public, all fixed before the work starts.</p><pre>readme  REPO_FILE   README.md contains "Honest limits"
+site    LIVE_PAGE   the site answers 200 and says "Did they deliver?"</pre></div>
+        <div class="panel" id="p2" role="tabpanel" aria-labelledby="t2" hidden><h3>The builder ships</h3><p>Anyone can open the milestone and see exactly what is being checked, with no account needed to look.</p><pre>deadline: end of 2026-10-31 (UTC)
+builder:  0xabF2…1160</pre></div>
+        <div class="panel" id="p3" role="tabpanel" aria-labelledby="t3" hidden><h3>Validators read the evidence</h3><p>Each validator fetches the sources itself. Plain facts must match exactly, and a failing check is shown, never hidden. A source that is down shows ERROR, not FAIL.</p><pre>readme  PASS
+site    PASS
+skill   PASS   → provisional MET</pre></div>
+        <div class="panel" id="p4" role="tabpanel" aria-labelledby="t4" hidden><h3>A window, then a verdict</h3><p>The builder may point a failing check at the right place, only that, at most three times. After the window anyone can finalize, and finalizing re-reads every source.</p><pre>START → ASSESS → (challenge window) → FINALIZE
+verdict MET · finalized · on the record</pre></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="why">
+    <p class="eyebrow">What is different</p>
+    <h2>Built for the question grants actually ask</h2>
+    <div class="bento">
+      <div class="b1"><p class="big">3 of 3</p><h3>Checks you can open yourself</h3><p>Every check names its source. The verdict card shows each result next to what was read, so nobody has to trust a summary.</p></div>
+      <div class="b2"><h3>A fair window</h3><p>A provisional reading can be answered once, and only by moving where a failing check looks. Never the criteria.</p></div>
+      <div class="b3"><h3>No typed verdicts</h3><p>The factory deploys each milestone and reads its result back itself.</p></div>
+      <div class="b4"><h3>Honest about its limits</h3><p>MET means the stated public checks held, not that the work is good. Test network, test accounts, one record so far. We say so on every verdict card.</p></div>
     </div>
   </section>
 
@@ -78,9 +111,10 @@
         <p>An agent can create a milestone, run the rounds and read the record with plain contract calls. Everything it needs is in one page of instructions.</p>
         <div class="btns"><a class="btn alt" href="skill.md">Read the agent instructions</a></div>
       </div>
-      <pre>Read https://oziman13.github.io/genlayer-milestone-oracle-app/web/skill.md
-and follow it to check milestone 0x... on GenLayer Studionet.
-Report the verdict, each check result and the Explorer link.</pre>
+      <div class="term"><div class="bar2"><i></i><i></i><i></i></div><pre><span class="c"># tell your agent</span>
+<span class="g">read</span> https://oziman13.github.io/genlayer-milestone-oracle-app/web/skill.md
+<span class="g">then</span> check milestone 0x… on GenLayer Studionet
+<span class="g">report</span> the verdict, each check result, the Explorer link</pre></div>
     </div>
   </section>
 
@@ -92,6 +126,7 @@ Report the verdict, each check result and the Explorer link.</pre>
     <details><summary>Does it hold or move money?</summary><p>No. It records a verdict. Whatever you do with the verdict, such as releasing a grant payment, happens elsewhere.</p></details>
     <details><summary>What are the limits?</summary><p>MET means the stated public checks hold, not that the work is good. A file check reads the file as it is now. The record is small while the project is new, and test accounts can be one person. This runs on a test network.</p></details>
   </section>
+  <section><div class="cta"><h2>Check a real milestone in a minute</h2><p>Open the finished example, or set up your own with a wallet on Studionet.</p><div class="btns"><a class="btn" href="app.html?address=0xDf63AB2C788c452e5E0088E6767Fe78e6e93ce30">Read the verdict</a><a class="btn alt" href="app.html">Set up a milestone</a></div></div></section>
   </main>
 
   <footer>
@@ -99,6 +134,12 @@ Report the verdict, each check result and the Explorer link.</pre>
   </footer>
 </div>
 <script src="config.js"></script>
+<script src="landing.js"></script>
+<script>
+document.documentElement.classList.add("js");
+(function(){var tabs=[].slice.call(document.querySelectorAll(".tab"));function pick(i){tabs.forEach(function(t,j){t.setAttribute("aria-selected",j===i);document.getElementById("p"+(j+1)).hidden=j!==i;});}
+tabs.forEach(function(t,i){t.onclick=function(){pick(i)};t.onkeydown=function(e){if(e.key==="ArrowDown"||e.key==="ArrowRight"){tabs[(i+1)%4].focus();pick((i+1)%4)}if(e.key==="ArrowUp"||e.key==="ArrowLeft"){tabs[(i+3)%4].focus();pick((i+3)%4)}}});})();
+</script>
 <script>document.getElementById("repoC").href=MO_CONFIG.REPO_CONTRACT;document.getElementById("repoA").href=MO_CONFIG.REPO_APP;</script>
 </body>
 </html>

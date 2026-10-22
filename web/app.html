@@ -3,138 +3,147 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Milestone Oracle</title>
-<style>
-  :root{--bg:#f4f8f6;--card:#fff;--ink:#16231f;--muted:#53625d;--line:#d9e6e0;--accent:#0f766e;
-        --ok:#1e8e5a;--warn:#b7791f;--bad:#c0392b}
-  @media (prefers-color-scheme:dark){:root{--bg:#101917;--card:#18231f;--ink:#e6f2ee;--muted:#9bb0a9;--line:#2a3b36;--accent:#5eead4;--ok:#4ade80;--warn:#fbbf24;--bad:#f87171}}
-  *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
-  main{max-width:880px;margin:0 auto;padding:24px 16px 64px}
-  h1{margin:0 0 4px;font-size:28px} h2{font-size:15px;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);margin:0 0 12px}
-  .sub{color:var(--muted);margin:0 0 20px}
-  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:16px}
-  .row{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between}
-  .badge{display:inline-block;padding:4px 12px;border-radius:999px;font-weight:700;font-size:14px;border:1px solid var(--line)}
-  .MET,.PASS,.FINALIZED{color:var(--ok)} .NOT_YET,.PROVISIONAL,.NEEDS_EVIDENCE,.INCONCLUSIVE,.ERROR{color:var(--warn)}
-  .NOT_MET,.FAIL,.LATE{color:var(--bad)} .NONE,.IDLE,.OPEN{color:var(--muted)}
-  dl{display:grid;grid-template-columns:max-content 1fr;gap:6px 16px;margin:0}
-  dt{color:var(--muted)} dd{margin:0;word-break:break-all}
-  table{width:100%;border-collapse:collapse;font-size:14px} th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top;word-break:break-word}
-  th{color:var(--muted);font-weight:600}
-  input,select,button{font:inherit;border-radius:10px;border:1px solid var(--line);padding:9px 12px;background:var(--card);color:var(--ink)}
-  input,select{width:100%;margin-bottom:8px}
-  button{background:var(--accent);color:#fff;border:0;font-weight:600;cursor:pointer} button:disabled{opacity:.5;cursor:not-allowed}
-  @media (prefers-color-scheme:dark){button{color:#06201c}}
-  button.ghost{background:transparent;color:var(--accent);border:1px solid var(--line)}
-  .msg{margin-top:10px;font-size:14px;color:var(--muted);white-space:pre-wrap;word-break:break-word}
-  .err{color:var(--bad)} .small{font-size:13px;color:var(--muted)} a{color:var(--accent)}
-  code{font-size:13px;word-break:break-all}
-  .actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
-  .chk{border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:8px}
-</style>
+<title>Milestone Oracle: app</title>
+<link rel="icon" href="logo.png">
+<link rel="stylesheet" href="site.css">
+<link rel="stylesheet" href="app.css">
 </head>
 <body>
-<main>
-  <h1>Milestone Oracle</h1>
-  <p class="sub">A public, challengeable checklist for one delivery milestone, running as a GenLayer Intelligent Contract on Studionet. It holds no funds: a finalized verdict is an attestation anyone can read.</p>
+<div class="wrap wide">
+  <header class="top"><a class="brand" href="./"><img src="logo.png" alt="">Milestone Oracle</a>
+    <nav class="nav"><a href="./">Overview</a><a href="builder.html">Builder records</a><a href="skill.md">For agents</a><a href="https://github.com/Oziman13/genlayer-milestone-oracle-app">Code</a></nav></header>
 
-  <div class="card" id="walletbar">
-    <h2>Wallet</h2>
-    <div class="row">
-      <div><span id="wstatus" class="small">Not connected.</span> <span class="badge NONE" id="rolepill" hidden></span></div>
-      <button id="connect">Connect wallet</button>
-    </div>
+  <main>
+  <div class="app-head">
+    <div class="eyebrow">Studionet · no funds held</div>
+    <h1>Did they deliver?</h1>
+    <p>Open a milestone to see its checks, what the validators read, and where the verdict stands. Reading needs no wallet. Starting, assessing and finalizing are signed in your own wallet.</p>
+  </div>
+
+  <div class="sheet bar" id="walletbar">
+    <div class="who"><span class="dot" aria-hidden="true"></span><span id="wstatus">Not connected.</span> <span class="badge NONE" id="rolepill" hidden></span></div>
+    <button id="connect" class="btn sm" type="button">Connect wallet</button>
     <div class="msg" id="wmsg"></div>
-    <p class="small">Every transaction is signed in your own wallet (MetaMask or any EIP-1193 wallet) on the GenLayer Studio network. This page never asks for, creates or stores a private key. Use a Studio test account, not one that holds real funds.</p>
+    <details class="safe"><summary>What does the wallet do here?</summary>
+      <p>Every transaction is signed in your own wallet (MetaMask or any EIP-1193 wallet) on the GenLayer Studio network. This page never asks for, creates or stores a private key. Use a Studio test account, not one that holds real funds.</p></details>
   </div>
 
-  <div class="card">
-    <h2>Contract</h2>
-    <input id="addr" spellcheck="false" aria-label="Contract address" placeholder="0x... contract address (or open this page with ?address=0x...)">
-    <div class="row"><button id="load">Load state</button><button id="newms" class="ghost">Create a new milestone</button><span class="small" id="loadmsg"></span></div>
+  <div class="sheet">
+    <h3 class="cap">Milestone</h3>
+    <div class="pick">
+      <input id="addr" spellcheck="false" aria-label="Contract address" placeholder="0x… milestone contract address">
+      <button id="load" class="btn" type="button">Load</button>
+      <button id="newms" class="btn alt" type="button">Create new</button>
+      <span class="small state" id="loadmsg"></span>
+    </div>
   </div>
 
-  <div class="card" id="setup" hidden>
-    <h2>Create a milestone (deploys a new contract)</h2>
-    <p class="small">The connected account becomes the funder. The builder is a different account. Contract code is fetched from this repository (<code>../contracts/milestone_oracle.py</code>) and sent as a deploy transaction you sign.</p>
-    <input id="s_builder" placeholder="Builder address (0x..., must differ from the connected account)">
-    <input id="s_title" placeholder="Milestone title">
-    <input id="s_deadline" placeholder="Deadline, YYYY-MM-DD (end of that day, UTC)">
-    <input id="s_window" type="number" value="300" aria-label="Challenge window seconds" placeholder="Challenge window in seconds (300 to 604800)">
-    <div id="s_checks"></div>
-    <div class="row" style="justify-content:flex-start"><button id="s_add" class="ghost">Add check</button><button id="s_deploy">Deploy milestone</button></div>
-    <div class="msg err" id="s_errs"></div>
+  <div class="sheet" id="setup" hidden>
+    <h3 class="cap">Create a milestone</h3>
+    <p class="small">Deploys a new contract. The connected account becomes the funder; the builder is a different account. The contract code is fetched from this repository (<code>../contracts/milestone_oracle.py</code>) and sent as a deploy transaction you sign.</p>
+    <div class="form">
+      <input id="s_builder" placeholder="Builder address (0x…, must differ from the connected account)">
+      <input id="s_title" placeholder="Milestone title">
+      <div class="two2">
+        <input id="s_deadline" placeholder="Deadline, YYYY-MM-DD (end of that day, UTC)">
+        <input id="s_window" type="number" value="300" aria-label="Challenge window seconds" placeholder="Challenge window in seconds (300 to 604800)">
+      </div>
+      <div id="s_checks"></div>
+      <div class="row-btns"><button id="s_add" class="btn alt sm" type="button">Add check</button><button id="s_deploy" class="btn sm" type="button">Deploy milestone</button></div>
+      <div class="msg err" id="s_errs"></div>
+    </div>
+  </div>
+
+  <div class="sheet" id="recovery" hidden>
+    <h3 class="cap">Unfinished transaction</h3>
+    <div class="msg err" id="recmsg"></div>
+    <div class="row2" style="margin-top:10px"><button id="recheck" class="btn sm" type="button">Check again</button><button id="recdismiss" class="btn alt sm" type="button">I checked: it was not sent</button></div>
+  </div>
+
+  <div id="txtop"><div class="sheet" id="txsheet">
+    <h3 class="cap">Transaction</h3>
+    <div class="msg" id="txmsg" style="margin:0">Nothing sent yet.</div>
+  </div></div>
+
+  <div class="sheet empty-hint" id="emptyhint">
+    <h2>Nothing loaded yet</h2>
+    <p>Paste a milestone address above, or open the example: <a id="examplelink" href="#">read a finalized verdict</a>.</p>
   </div>
 
   <div id="app" hidden>
-    <div class="card">
-      <div class="row">
-        <div><h2>Milestone</h2><div id="title" style="font-size:20px;font-weight:700"></div><div class="small" id="deadline"></div><div class="small"><a id="cardlink" href="#">Shareable verdict card</a></div></div>
-        <div style="text-align:right"><h2>Latest reading</h2><span class="badge" id="verdict"></span><div class="small" style="margin-top:6px">Attestation: <b id="att"></b></div></div>
+    <div class="layout">
+      <div class="col">
+        <div class="vslip">
+          <div class="label">Delivery milestone</div>
+          <h2 id="title"></h2>
+          <span id="verdict" class="badge"></span>
+          <div class="small" id="deadline"></div>
+          <div class="links"><a id="cardlink" href="#">Shareable verdict card</a></div>
+          <div class="att">Attestation: <b id="att"></b></div>
+        </div>
+
+        <div class="sheet">
+          <h3 class="cap">What the validators checked</h3>
+          <div id="checks"></div>
+          <p class="small" style="margin:10px 0 0">PASS, FAIL and LATE come from plain HTTP facts every validator verifies itself. ERROR means a source could not be read (rate limit, outage); it is never counted as a failure of the work.</p>
+        </div>
+
+        <div class="sheet">
+          <h3 class="cap">History</h3>
+          <ol class="timeline" id="hist"></ol>
+        </div>
       </div>
-    </div>
 
-    <div class="card">
-      <h2>Checklist</h2>
-      <table><thead><tr><th>Check</th><th>Kind</th><th>What is read</th><th>Result</th></tr></thead><tbody id="checks"></tbody></table>
-      <p class="small">PASS/FAIL/LATE come from plain HTTP facts every validator verifies itself. ERROR means a source could not be read (rate limit, outage); it is never counted as a failure of the work.</p>
-    </div>
+      <aside class="side">
+        <div class="sheet">
+          <h3 class="cap">Round</h3>
+          <div class="tiles">
+            <div class="tile"><span>Round</span><b id="round"></b></div>
+            <div class="tile"><span>Phase</span><b class="badge" id="phase"></b></div>
+            <div class="tile"><span>Candidate</span><b id="cand"></b></div>
+            <div class="tile"><span>Amendments</span><b id="amends"></b></div>
+            <div class="tile wide"><span>Challenge window ends</span><b id="window" style="font-size:15px"></b></div>
+          </div>
+          <div style="margin-top:10px">
+            <div class="addr"><span>Funder</span><code id="funder"></code></div>
+            <div class="addr"><span>Builder</span><code id="builder"></code></div>
+          </div>
+        </div>
 
-    <div class="card">
-      <h2>Round</h2>
-      <dl>
-        <dt>Round</dt><dd id="round"></dd>
-        <dt>Phase</dt><dd><span class="badge" id="phase"></span></dd>
-        <dt>Candidate</dt><dd id="cand"></dd>
-        <dt>Challenge window</dt><dd id="window"></dd>
-        <dt>Amendments used</dt><dd id="amends"></dd>
-        <dt>Funder</dt><dd id="funder"></dd>
-        <dt>Builder</dt><dd id="builder"></dd>
-      </dl>
-    </div>
+        <div class="sheet">
+          <h3 class="cap">Actions</h3>
+          <p class="small" style="margin:0 0 12px">Enabled only when your connected account may do that action now; the line under each says why not. A transaction counts as done only when the network has FINALIZED it and the contract call returned without error.</p>
+          <div class="acts">
+            <div class="act"><button id="b_start" class="btn" type="button">Start round</button><div class="small" id="r_start"></div></div>
+            <div class="act"><button id="b_assess" class="btn" type="button">Assess</button><div class="small" id="r_assess"></div></div>
+            <div class="act"><button id="b_fin" class="btn" type="button">Finalize</button><div class="small" id="r_finalize"></div></div>
+          </div>
+          <details class="amend">
+            <summary>Builder amendment</summary>
+            <div class="f">
+              <select id="acheck" aria-label="Check to amend"></select>
+              <input id="atarget" placeholder="New target: a release tag, a file path, or an https URL on the same site">
+              <input id="anote" placeholder="Short note: why is the target moving?">
+              <button id="b_amend" class="btn alt sm" type="button">Amend</button><div class="small" id="r_amend"></div>
+            </div>
+          </details>
+          <div class="row2" style="margin-top:14px"><button id="refresh" class="btn alt sm" type="button">Refresh</button></div>
+        </div>
 
-    <div class="card">
-      <h2>History</h2>
-      <table><thead><tr><th>#</th><th>Time (UTC)</th><th>Action</th><th>Verdict</th><th>Note</th><th>Caller</th></tr></thead><tbody id="hist"></tbody></table>
-    </div>
+        <div class="sheet" id="recordbox" hidden>
+          <h3 class="cap">Delivery record</h3>
+          <div class="msg" id="recmsg2" style="margin-top:0"></div>
+          <div class="row2" style="margin-top:12px"><button id="b_record" class="btn sm" type="button" hidden>Add to delivery record</button><a id="recordlink" hidden href="#">See the builder's record</a></div>
+        </div>
 
-    <div class="card">
-      <h2>Actions</h2>
-      <p class="small">Buttons are enabled only when your connected account may do that action in the current phase; the line under each says why not. A transaction counts as done only when the network has FINALIZED it and the contract call itself returned without error.</p>
-      <div class="actions">
-        <div><button id="b_start">Start round</button><div class="small" id="r_start"></div></div>
-        <div><button id="b_assess">Assess</button><div class="small" id="r_assess"></div></div>
-        <div><button id="b_fin">Finalize</button><div class="small" id="r_finalize"></div></div>
-      </div>
-      <h2 style="margin-top:18px">Builder amendment</h2>
-      <select id="acheck" aria-label="Check to amend"></select>
-      <input id="atarget" placeholder="New target: a release tag, a file path, or an https URL on the same site">
-      <input id="anote" placeholder="Short note: why is the target moving?">
-      <button id="b_amend" class="ghost">Amend</button><div class="small" id="r_amend"></div>
-      <div class="row" style="justify-content:flex-start;margin-top:10px"><button id="refresh" class="ghost">Refresh</button></div>
+        <div id="txside"></div>
+      </aside>
     </div>
   </div>
+  </main>
 
-  <div class="card" id="recordbox" hidden>
-    <h2>Delivery record</h2>
-    <div class="msg" id="recmsg2"></div>
-    <div class="row" style="justify-content:flex-start;margin-top:10px"><button id="b_record" hidden>Add to delivery record</button><a id="recordlink" hidden href="#">See the builder's record</a></div>
-  </div>
-
-  <div class="card" id="recovery" hidden>
-    <h2>Unfinished transaction</h2>
-    <div class="msg err" id="recmsg"></div>
-    <div class="row" style="margin-top:10px"><button id="recheck">Check again</button><button id="recdismiss" class="ghost">I checked: it was not sent</button></div>
-  </div>
-
-  <div class="card">
-    <h2>Transaction</h2>
-    <div class="msg" id="txmsg">Nothing sent yet.</div>
-  </div>
-
-  <p class="small">Limits: a MET verdict says the stated public checks hold, not that the work is good. REPO_FILE reads the file as it is now, not as of the deadline. Source code, tests and evidence: <a href="https://github.com/Oziman13/genlayer-milestone-oracle">github.com/Oziman13/genlayer-milestone-oracle</a></p>
-</main>
+  <footer>Limits: a MET verdict says the stated public checks hold, not that the work is good. REPO_FILE reads the file as it is now, not as of the deadline. Source code, tests and evidence: <a href="https://github.com/Oziman13/genlayer-milestone-oracle">github.com/Oziman13/genlayer-milestone-oracle</a></footer>
+</div>
 <script src="config.js"></script>
 <script src="app.js"></script>
 </body>
