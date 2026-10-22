@@ -1,7 +1,6 @@
-# v0.1.0
+# v0.1.1
 # { "Depends": "py-genlayer:1jb45aa8ynh2a9c9xn3b7qqh8sm5q93hwfp7jqmwsfhh8jpz09h6" }
 from genlayer import *
-from genlayer.py.public_abi import StorageType
 import hashlib
 import json
 
@@ -95,8 +94,11 @@ class MilestoneFactory(gl.Contract):
         if child in self.records:
             raise gl.vm.UserError("already recorded")
         info = json.loads(self.created[child])
+        # Read the milestone with the default view. On Studionet a read pinned to the "latest final"
+        # state did not answer (probe, 2026-10-21: default 1.3 s, nonfinal 1.6 s, final timed out), so
+        # the record trusts the milestone's own FINALIZED phase, which only a finished round can reach.
         proxy = gl.get_contract_at(Address(child))
-        state = json.loads(proxy.view(state=StorageType.LATEST_FINAL).get_state_json())
+        state = json.loads(proxy.view().get_state_json())
         if int(state.get("finalized", 0)) != 1 or state.get("phase") != "FINALIZED":
             raise gl.vm.UserError("milestone is not FINALIZED")
         verdict = state.get("final_verdict")
@@ -108,7 +110,7 @@ class MilestoneFactory(gl.Contract):
         history_count = int(state.get("history_count", 0))
         if history_count < 1:
             raise gl.vm.UserError("milestone has no history")
-        last = json.loads(proxy.view(state=StorageType.LATEST_FINAL).get_history_json(history_count - 1))
+        last = json.loads(proxy.view().get_history_json(history_count - 1))
         if last.get("action") != "FINALIZE" or last.get("verdict") != verdict:
             raise gl.vm.UserError("last history row is not the matching FINALIZE")
         summary = {
