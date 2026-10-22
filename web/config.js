@@ -4,6 +4,7 @@
 window.MO_CONFIG = {
   FACTORY: "0x123352e162Fa441Ba1C4252662A7d00EC05fb737",
   // The one milestone that was run live on Studionet (v0.1.0, direct deploy, not part of any factory record).
+  EXAMPLE_BUILDER: "0xabF20c3e89d0E1C37DEAeA3B44602F4838661160",
   LIVE_EXAMPLE: "0xDf63AB2C788c452e5E0088E6767Fe78e6e93ce30",
   REPO_CONTRACT: "https://github.com/Oziman13/genlayer-milestone-oracle",
   REPO_APP: "https://github.com/Oziman13/genlayer-milestone-oracle-app",

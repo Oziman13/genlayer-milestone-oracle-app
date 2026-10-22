@@ -13,9 +13,10 @@
   <header class="top"><a class="brand" href="./"><img src="logo.png" alt="">Milestone Oracle</a><nav class="nav"><a href="app.html">Open the app</a></nav></header>
   <main>
   <section>
-    <div class="intro"><h2>Has this builder kept their word?</h2>
+    <div class="intro"><p class="eyebrow" style="font:600 12px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--teal-ink);margin:0 0 10px">Delivery record · Studionet</p><h2>Has this builder kept their word?</h2>
     <p>Paste a builder address to see every finalized milestone recorded for it, with the verdict and who funded it.</p></div>
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin:14px 0 22px"><input id="builder" style="flex:1 1 320px" spellcheck="false" aria-label="Builder address" placeholder="0x… builder address"><button class="btn" id="go" type="button">Show record</button></div>
+    <p class="small" id="exwrap" style="margin:-8px 0 18px;color:var(--muted);font-size:14px" hidden>No address at hand? <a id="exlink" href="#">Open the example builder</a>.</p>
     <div id="out" aria-live="polite"></div>
   </section>
   </main>
