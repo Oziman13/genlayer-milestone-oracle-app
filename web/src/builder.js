@@ -38,5 +38,6 @@ async function lookup() {
 }
 $("go").onclick = lookup;
 $("builder").onkeydown = e => { if (e.key === "Enter") lookup(); };
+if (cfg.EXAMPLE_BUILDER && !$("builder").value) { $("exwrap").hidden = false; $("exlink").href = "builder.html?builder=" + cfg.EXAMPLE_BUILDER; }
 if (EXPLORER) $("explorer").href = EXPLORER;
 if ($("builder").value) lookup();

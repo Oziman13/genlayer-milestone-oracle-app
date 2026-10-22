@@ -158,7 +158,7 @@ async function load() {
         : `<li><span class="tdot"></span>Row ${i}: unreadable</li>`);
     }
     $("hist").innerHTML = rows.join("") || '<li class="empty">No history yet</li>';
-    $("emptyhint").hidden = true; $("txside").appendChild($("txsheet"));
+    document.body.classList.add("loaded"); $("emptyhint").hidden = true; $("txside").appendChild($("txsheet"));
     msg.textContent = "Loaded.";
     try { localStorage.setItem(LAST, $("addr").value.trim()); } catch { /* storage may be blocked */ }
     renderWallet();
@@ -166,7 +166,7 @@ async function load() {
     return true;
   } catch (e) {
     // never leave the previous milestone on screen under a new address
-    state = null; $("app").hidden = true; $("recordbox").hidden = true; $("emptyhint").hidden = false; $("txtop").appendChild($("txsheet")); renderWallet();
+    state = null; $("app").hidden = true; $("recordbox").hidden = true; document.body.classList.remove("loaded"); $("emptyhint").hidden = false; $("txtop").appendChild($("txsheet")); renderWallet();
     msg.textContent = "Could not read the contract: " + (e.message || e);
     msg.className = "small err";
     return false;
