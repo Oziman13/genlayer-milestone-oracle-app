@@ -28,6 +28,7 @@ let busy = false;
 const LAST = "mo_last_address";   // remembered so a page reload keeps the milestone you were looking at
 const lastAddr = () => { try { return localStorage.getItem(LAST) || ""; } catch { return ""; } };
 $("addr").value = new URLSearchParams(location.search).get("address") || lastAddr();
+if (cfg.LIVE_EXAMPLE) $("examplelink").href = "app.html?address=" + cfg.LIVE_EXAMPLE + (useFactory ? "&factory=" + factory : "");
 
 function say(text, err = false) { const m = $("txmsg"); m.className = "msg" + (err ? " err" : ""); m.textContent = text; }
 const txLink = h => EXPLORER ? `\nExplorer: ${EXPLORER}/tx/${h}` : "";
@@ -35,6 +36,7 @@ const txLink = h => EXPLORER ? `\nExplorer: ${EXPLORER}/tx/${h}` : "";
 // ---------- wallet ----------
 function renderWallet() {
   const pill = $("rolepill");
+  $("walletbar").classList.toggle("on", !!address);
   if (!address) {
     $("wstatus").textContent = hasWallet() ? "Not connected." : "No browser wallet found.";
     $("connect").textContent = "Connect wallet"; pill.hidden = true;
@@ -42,6 +44,7 @@ function renderWallet() {
     $("wstatus").textContent = "Connected: " + address;
     $("connect").textContent = "Reconnect";
     const role = roleOf(state, address);
+    if (role === "builder") { const d = document.querySelector("details.amend"); if (d) d.open = true; }   // the builder is the one who may amend
     pill.hidden = false;
     pill.textContent = state ? "role: " + role : "no milestone loaded";
     pill.className = "badge " + (role === "funder" || role === "builder" ? "PASS" : "NONE");
@@ -132,7 +135,7 @@ async function load() {
     $("att").textContent = (await view("get_attestation")) || "NONE";
     $("checks").innerHTML = st.checks.map(c => {
       const r = (st.latest_results || {})[c.id];
-      return `<tr><td>${esc(c.id)}</td><td>${esc(c.kind)}</td><td>${esc(target(c))}</td><td>${r ? `<span class="badge ${esc(r)}">${esc(r)}</span>` : "-"}</td></tr>`;
+      return `<div class="crow"><b>${esc(c.id)}</b><span class="chip">${esc(c.kind)}</span><span class="what">${esc(target(c))}</span>${r ? `<span class="badge ${esc(r)}">${esc(r)}</span>` : '<span class="small">not read yet</span>'}</div>`;
     }).join("");
     const prev = $("acheck").value;
     $("acheck").innerHTML = st.checks.map(c => `<option value="${esc(c.id)}">${esc(c.id)} (${esc(c.kind)})</option>`).join("");
@@ -151,10 +154,11 @@ async function load() {
     for (let i = 0; i < st.history_count; i++) {
       const r = parse(await view("get_history_json", [i]));
       rows.push(r
-        ? `<tr><td>${i}</td><td>${esc(utc(r.timestamp))}</td><td>${esc(r.action)}</td><td>${esc(r.verdict)}</td><td>${esc(r.note || "")}</td><td>${esc(short(r.caller))}</td></tr>`
-        : `<tr><td>${i}</td><td colspan="5">unreadable row</td></tr>`);
+        ? `<li${r.action === "FINALIZE" ? ' class="final"' : ""}><span class="tdot"></span><b>${esc(r.action)}</b> <span class="badge ${esc(r.verdict)}">${esc(r.verdict)}</span><div class="when">${esc(utc(r.timestamp))} UTC · ${esc(short(r.caller))}</div>${r.note ? `<div class="note">${esc(r.note)}</div>` : ""}</li>`
+        : `<li><span class="tdot"></span>Row ${i}: unreadable</li>`);
     }
-    $("hist").innerHTML = rows.join("") || '<tr><td colspan="6">No history yet</td></tr>';
+    $("hist").innerHTML = rows.join("") || '<li class="empty">No history yet</li>';
+    $("emptyhint").hidden = true; $("txside").appendChild($("txsheet"));
     msg.textContent = "Loaded.";
     try { localStorage.setItem(LAST, $("addr").value.trim()); } catch { /* storage may be blocked */ }
     renderWallet();
@@ -162,7 +166,7 @@ async function load() {
     return true;
   } catch (e) {
     // never leave the previous milestone on screen under a new address
-    state = null; $("app").hidden = true; $("recordbox").hidden = true; renderWallet();
+    state = null; $("app").hidden = true; $("recordbox").hidden = true; $("emptyhint").hidden = false; $("txtop").appendChild($("txsheet")); renderWallet();
     msg.textContent = "Could not read the contract: " + (e.message || e);
     msg.className = "small err";
     return false;
