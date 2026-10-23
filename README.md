@@ -44,7 +44,7 @@ creates, asks for or stores a private key.
 * **Remembers the last milestone**: the address you loaded is kept in localStorage, so reloading the page keeps it
   (an address in the link always wins). Storage that is blocked is ignored.
 * **Tests**: `tests/browser/wallet_flow.test.mjs` runs the page in Chromium against a mock EIP-1193 wallet and a
-  mock Studio RPC (80 checks, output in `evidence/browser-tests.txt`): wallet connect, roles, the start_round, assess,
+  mock Studio RPC (107 checks, output in `evidence/browser-tests-v0.3.txt`; `evidence/browser-tests.txt` is the earlier 80-check run): wallet connect, roles, the start_round, assess,
   amend and finalize paths, the transaction lifecycle, the ambiguous-send and reload-recovery cases above, deploy
   adoption and remembered address. They prove the page's logic, not real MetaMask or real Studionet behaviour.
   Mutations of the lifecycle and of the recovery lock are caught by them.
@@ -81,4 +81,6 @@ creates, asks for or stores a private key.
 
 ## Tests
 
-`npm test` runs `tests/browser/wallet_flow.test.mjs` (101 checks, wallet app incl. factory create, record and factory deploy flows) and `tests/browser/pages.test.mjs` (41 checks: landing, builder, verdict card pages and record helpers) against a mock wallet and a mock Studio RPC. They do not prove real MetaMask or real Studionet behaviour. Build with `npm run build`.
+`npm test` runs `tests/browser/wallet_flow.test.mjs` (107 checks, wallet app incl. factory create, record and factory deploy flows) and `tests/browser/pages.test.mjs` (42 checks: landing, builder, verdict card pages and record helpers) against a mock wallet and a mock Studio RPC. They do not prove real MetaMask or real Studionet behaviour. Build with `npm run build`.
+
+Contract tests (Python, `genlayer-test`): `python3 -m pytest tests/direct` runs 159 direct-mode tests for the Milestone Oracle v0.2.0 contract and for the factory's funder argument (`evidence/contract-direct-tests.txt`), and `python3 -m pytest tests/glsim` runs 21 integration tests of `MilestoneFactory` and `record()` on a local 5-validator network (`evidence/contract-glsim-tests.txt`). The Studionet evidence is in `evidence/factory-deploy-studionet.txt`, `evidence/factory-live-run-studionet.txt` and `evidence/read-probe-studionet.txt` (why v0.1.1 reads with the default view).

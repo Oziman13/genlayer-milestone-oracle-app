@@ -58,6 +58,7 @@ async function newCase({ state, txScripts = {}, wallet = {}, hasWallet = true, n
       if (x.method === "gen_call") {
         const txt = Buffer.from((x.params[0].data || "").replace(/^0x/, ""), "hex").toString("latin1");
         let s = "NONE";
+        (rpc.calledTo = rpc.calledTo || []).push(String(x.params[0].to || ""));
         const to = String(x.params[0].to || "").toLowerCase();
         let raw = null;
         if (rpc.stateFailures && rpc.stateFailures[to] > 0 && txt.includes("get_state_json")) { rpc.stateFailures[to]--; return { jsonrpc: "2.0", id: x.id, error: { code: -32000, message: "mock: contract not deployed yet" } }; }
@@ -404,8 +405,8 @@ async function ambiguousCase(extra = {}) {
   const c = await ambiguousCase();
   const p = await pend(c);
   ok("ambiguous: the record keeps account, network, contract, action and nonce context",
-    p && p.stage === "ambiguous" && p.account.toLowerCase() === OTHER && p.chainId === "0xf22f" && p.address === CONTRACT && p.fn === "finalize" && p.label === "finalize" && p.nonceBefore === 0 && p.nonceAfter === 1);
-  ok("ambiguous: the unfinished-transaction panel shows that context", await c.p.locator("#recovery").isVisible() && /finalize/.test(await text(c.p, "#recmsg")) && (await text(c.p, "#recmsg")).includes(OTHER) && (await text(c.p, "#recmsg")).includes(CONTRACT) && /before sending: 0/.test(await text(c.p, "#recmsg")));
+    p && p.stage === "ambiguous" && p.account.toLowerCase() === OTHER && p.chainId === "0xf22f" && p.address.toLowerCase() === CONTRACT && p.fn === "finalize" && p.label === "finalize" && p.nonceBefore === 0 && p.nonceAfter === 1);
+  ok("ambiguous: the unfinished-transaction panel shows that context", await c.p.locator("#recovery").isVisible() && /finalize/.test(await text(c.p, "#recmsg")) && (await text(c.p, "#recmsg")).includes(OTHER) && (await text(c.p, "#recmsg")).toLowerCase().includes(CONTRACT) && /before sending: 0/.test(await text(c.p, "#recmsg")));
   ok("ambiguous: every send, including deploy, is locked with the reason", await allLocked(c) && /may have been sent/.test(await text(c.p, "#r_finalize")));
   await c.p.click("#b_fin", { force: true }).catch(() => {});
   ok("ambiguous: a blind resend is impossible (only the first transaction was ever sent)", (await sendCount(c)) === 1);
@@ -545,7 +546,7 @@ const created = { total: 2, offset: 0, items: [
   if (process.env.DBG) { await new Promise(r => setTimeout(r, 1500)); console.log("DATA", (await sentData(c)).slice(0, 700)); console.log("MSG", await text(c.p, "#s_errs"), "|", await text(c.p, "#txmsg"), c.errs); }
   ok("factory: the transaction is a create_milestone call (not a contract deployment)", await c.p.waitForFunction(() => window.__reqs.some(r => r.method === "eth_sendTransaction"), null, { timeout: 8000 }).then(() => true).catch(() => false) && await hasText(c, "create_milestone"));
   ok("factory: address adopted from the factory list by funder+builder+title (not the other funder's twin)", await c.p.waitForFunction(a => document.getElementById("addr").value.toLowerCase() === a, NEWC, { timeout: 8000 }).then(() => true).catch(() => false));
-  ok("factory: share link keeps the milestone address", await waitText(c.p, "#txmsg", new RegExp("\\?address=" + NEWC)));
+  ok("factory: share link keeps the milestone address (checksum spelling)", await waitText(c.p, "#txmsg", new RegExp("\\?address=" + (await import("viem")).getAddress(NEWC))));
   ok("factory: a not-finalized milestone shows the waiting text and no record button", /Once this milestone is finalized/.test(await text(c.p, "#recmsg2")) && await c.p.locator("#b_record").isHidden());
   await c.ctx.close();
 }
@@ -652,6 +653,16 @@ const created = { total: 2, offset: 0, items: [
   await c.p.waitForSelector("#title", { state: "visible" });
   await fillSetup(c); await c.p.click("#s_deploy");
   ok("unreadable contract: says created-but-not-readable, no success claim, old data hidden", await waitText(c.p, "#txmsg", /not readable yet/, 15000) && !/through the factory\.\nShare/.test(await text(c.p, "#txmsg")) && await c.p.locator("#app").isHidden());
+  await c.ctx.close();
+}
+
+{ // the network finds contracts by their checksum spelling: every read must use it, even if the page was opened with lowercase
+  const { getAddress } = await import("viem");
+  const c = await newCase({ state: baseState() });
+  await c.open(`&address=${CONTRACT}`);
+  await c.p.waitForSelector("#title", { state: "visible" });
+  ok("checksum: reads use the checksum spelling although the page was opened with a lowercase address", c.rpc.calledTo.length > 0 && c.rpc.calledTo.every(t => t === getAddress(CONTRACT)), c.rpc.calledTo.join(","));
+  ok("checksum: the verdict-card link uses the checksum spelling", (await c.p.getAttribute("#cardlink", "href")).endsWith("address=" + getAddress(CONTRACT)));
   await c.ctx.close();
 }
 

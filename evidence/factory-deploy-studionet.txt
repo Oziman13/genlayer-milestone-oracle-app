@@ -1,0 +1,8 @@
+MilestoneFactory v0.1.0 deployed on GenLayer Studionet, 2026-10-21 (Istanbul 15:01-15:02)
+Factory address : 0x1C9eE0e275D03329a500fc654BD9dF6e90E882d3
+Deploy tx       : 0x180af961e0e02a8e37b319fb51c0198afc4dc53f765bde20c67770160a45fd64   (read from a screenshot; confirm in the explorer)
+Deployer        : 0x663247c083dcbb64e0c8c3bfacd53026427e5350  (Studio test account)
+Milestone source held by the factory: contracts/milestone_oracle.py v0.2.0, 26005 characters
+Milestone source SHA-256: 0x701af4e636c2b0b56aaabf7cb6e396c312eca9767be8f9924edd444ebe1b790a
+Check: the deploy page compared get_factory_info().code_sha256 with the SHA-256 of the source it displayed -> "Verified".
+Not yet done: a milestone created through this factory, a finalized verdict, a record() call.

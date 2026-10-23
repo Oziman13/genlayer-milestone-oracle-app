@@ -1,2 +1,155 @@
-105 passed, 0 failed
+Browser tests (Chromium, mock EIP-1193 wallet and mock Studio RPC), run 2026-10-23 with `npm test` (node tests/browser/wallet_flow.test.mjs && node tests/browser/pages.test.mjs)
+
+PASS no wallet: state still readable
+PASS no wallet: finalize disabled with reason
+PASS no wallet: explains how to proceed
+PASS no private key input anywhere
+PASS no localStorage key material
+PASS connect: wrong chain -> add chain then switch
+PASS connect: ends on Studio chain
+PASS connect: role pill shows funder
+PASS connect: user rejection explained, not connected
+PASS viewer: role viewer
+PASS viewer: start/assess/amend locked, finalize open after window
+PASS viewer: reason names the rule
+PASS window open: finalize locked with reason
+PASS funder cannot amend
+PASS builder in NEEDS_EVIDENCE with failing check: amend enabled
+PASS builder: passing check cannot be amended
+PASS start allowed in NEEDS_EVIDENCE
+PASS finalized: every action locked
+PASS lifecycle: ACCEPTED is shown as in progress, not as applied
+PASS lifecycle: FINALIZED+SUCCESS reported as applied
+PASS lifecycle: transaction went through the wallet from the connected account
+PASS lifecycle: state reloaded afterwards
+PASS lifecycle: pending record cleared
+PASS contract error: FINALIZED+ERROR reported as refused, not applied
+PASS undetermined: reported as not applied
+PASS user rejects signature: clear message, no polling
+PASS user rejects: buttons usable again
+PASS send error with unchanged nonce: reported as not sent
+PASS send error but nonce moved: flagged ambiguous, resend discouraged
+PASS network switched away: warning shown
+PASS wrong network at send time: wallet is switched back before sending
+PASS resume: finds the open transaction and reports final result
+PASS resume: loads the milestone it belonged to
+PASS resume: record cleared
+PASS setup: form visible with one starter check
+PASS setup: asks to connect first and lists field errors
+PASS setup: builder equal to funder rejected before any transaction
+PASS setup: out-of-range window and empty check rejected
+PASS setup: deploy is signed by the wallet
+PASS setup: after FINALIZED+SUCCESS the new address is picked up and loaded
+PASS setup: share link offered
+PASS deploy refused by contract: reported, address NOT adopted
+PASS hostile title rendered as text, no script ran
+PASS no page errors in the whole run
+PASS fresh visit with no address and nothing remembered shows an empty box
+PASS a loaded address is remembered
+PASS reload without ?address= restores it and loads the milestone
+PASS an address in the link wins over the remembered one
+PASS no page errors in the remember-address checks
+PASS start_round: sent with the right function and applied only after FINALIZED+SUCCESS
+PASS start_round: the page reloads the state (phase OPEN) and unlocks assess
+PASS assess: sent as assess and applied, state reloaded to PROVISIONAL
+PASS amend: sent with the target and note, applied, amendment counter reloaded
+PASS funder cannot amend or finalize outside the rules, nothing can be sent
+PASS ambiguous: the record keeps account, network, contract, action and nonce context
+PASS ambiguous: the unfinished-transaction panel shows that context
+PASS ambiguous: every send, including deploy, is locked with the reason
+PASS ambiguous: a blind resend is impossible (only the first transaction was ever sent)
+PASS reload: the matching transaction is located and reported as applied (other contract / ancient tx ignored)
+PASS reload: record cleared and sends unlocked again
+PASS unresolved (nonce moved, nothing listed): says why and keeps sends blocked
+PASS unresolved: points to the account history in the explorer
+PASS unresolved -> Check again finds the transaction once it is listed
+PASS listing unavailable and nonce moved: unresolved, blocked, honest wording
+PASS two candidates: both hashes are shown, nothing is guessed, sends stay blocked
+PASS manual release: 'I checked: it was not sent' clears the record and unlocks
+PASS reload during signing, nonce unchanged: reported as not sent, safe to retry
+PASS reload during signing, nonce unchanged: sends unlocked
+PASS reload during signing, tx was broadcast: located by the listing and followed to FINALIZED
+PASS nonce unreadable + wallet error: flagged ambiguous and blocked (never 'not sent')
+PASS nonce unreadable: the record is stored as ambiguous
+PASS unresolved: the contract state is compared with the snapshot and the hint is shown (record is NOT cleared by it)
+PASS reload recovery: finishes the recorded transaction
+PASS reload recovery: the Contract box switches to the recorded contract and loads it
+PASS deploy recovery: the new address is adopted from the FINALIZED+SUCCESS receipt and loaded
+PASS deploy recovery: share link shown and record cleared
+PASS deploy recovery: a refused deployment is reported and its address is NOT adopted
+PASS deploy recovery: no address in the receipt -> clear message, nothing adopted
+PASS open transaction: sends are locked while it is unresolved
+PASS open transaction: once it is FINALIZED+SUCCESS it is reported, the record is cleared and sends unlock
+PASS factory: the transaction is a create_milestone call (not a contract deployment)
+PASS factory: address adopted from the factory list by funder+builder+title (not the other funder's twin)
+PASS factory: share link keeps the milestone address (checksum spelling)
+PASS factory: a not-finalized milestone shows the waiting text and no record button
+PASS factory: milestone not in the list -> message, address NOT adopted
+PASS record: finalized factory milestone offers 'Add to delivery record'
+PASS record: a stranger (not funder/builder) may press it
+PASS record: sends a record call and reports it applied
+PASS record: afterwards shows 'On the delivery record' and a link to the builder page
+PASS record: look-alike (not from the factory) -> explained, no button
+PASS no factory: record box stays hidden
+PASS factory recovery: a finalized create_milestone is adopted after a reload
+PASS deploy-factory: shows the sizes and the SHA-256 of the milestone source
+PASS deploy-factory: deploy button locked until a wallet is connected
+PASS deploy-factory: signed by the wallet
+PASS deploy-factory: address shown only after FINALIZED+SUCCESS
+PASS deploy-factory: the factory's code hash is checked against the shown source
+PASS deploy-factory: no page errors
+PASS deploy-factory: a factory with different code is flagged, not trusted
+PASS deploy-factory: a refused deployment shows no address
+PASS deploy-factory: declining in the wallet sends nothing and says so
+PASS late contract: the old milestone is loaded first
+PASS late contract: after retries the NEW milestone is shown and success is reported
+PASS late contract: the old milestone never stays on screen under the new address
+PASS unreadable contract: says created-but-not-readable, no success claim, old data hidden
+PASS checksum: reads use the checksum spelling although the page was opened with a lowercase address
+PASS checksum: the verdict-card link uses the checksum spelling
+
+107 passed, 0 failed
+PASS validAddress accepts 0x+40 hex only
+PASS summaryView rejects non-summary
+PASS summaryView drops malformed rows and recounts itself
+PASS pickCreated: newest matching row wins, case and spaces ignored
+PASS pickCreated: other funder's twin is never picked
+PASS pickCreated: empty or malformed input gives null
+PASS recordState: not from the factory -> cannot record
+PASS recordState: finalized MET/NOT_MET and not recorded -> can record
+PASS recordState: INCONCLUSIVE / not finalized -> cannot record
+PASS recordState: already recorded -> shown as recorded, no button
+PASS cardView: FINALIZED MET gets the MET stamp
+PASS cardView: provisional reading never gets a stamp
+PASS cardView: attestation that disagrees with the final verdict -> no stamp and a warning
+PASS cardView: finalized INCONCLUSIVE -> no stamp
+PASS cardView: unchecked checks have an empty result, junk input gives null
+PASS landing: headline and both buttons
+PASS landing: shows only the labelled real test run (stamp MET, own accounts)
+PASS landing: no empty counters or invented numbers on the page
+PASS landing: footer links filled from config
+PASS landing: no page errors
+PASS landing: old ?address= links still open the app
+PASS builder: counts recomputed from rows (2 recorded, 1 MET, 1 NOT_MET)
+PASS builder: rows link to the milestone in the app
+PASS builder: states what is NOT counted (created 3, recorded 2)
+PASS builder: embed snippet offered
+PASS builder: no page errors
+PASS builder: created but not recorded -> honest empty state, no zero counters
+PASS builder: node failure is reported, not shown as an empty record
+PASS builder: no factory configured -> says so, no sample data
+PASS builder: bad address refused
+PASS badge mode: header and table hidden, counts visible
+PASS card: finalized MET shows the stamp, title, checks and who is who
+PASS card: shows the last real history event
+PASS card: recorded milestone links to the builder record
+PASS card: states the limits, links to the full history
+PASS card: title carries the verdict
+PASS card: no page errors
+PASS card: provisional reading has NO stamp and says it is not final
+PASS card: milestone outside the factory says it cannot be on the record
+PASS card: node failure is reported as an error
+PASS card: missing address explains how to open it
+PASS diagnose: reports on the factory and sends nothing
+
 42 passed, 0 failed

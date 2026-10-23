@@ -1,0 +1,22 @@
+Live run of MilestoneFactory v0.1.1 + MilestoneOracle v0.2.0 on Studionet, 2026-10-22
+Factory (deployed from the funder test account, code hash verified by the deploy page):
+  0x123352e162Fa441Ba1C4252662A7d00EC05fb737
+  milestone source SHA-256 0x701af4e636c2b0b56aaabf7cb6e396c312eca9767be8f9924edd444ebe1b790a (26005 characters)
+Milestone created through the factory (create_milestone):
+  0xDf63AB2C788c452e5E0088E6767Fe78e6e93ce30  (EIP-55 spelling; the factory stores it lower-case)
+  funder  0x663247c083dcbb64e0c8c3bfacd53026427e5350 (Studio test account)
+  builder 0xabf20c3e89d0e1c37deaea3b44602f4838661160
+  title   Publish the Milestone Oracle web client with a landing page and agent instructions
+  deadline 2026-10-31, challenge window 300 s, checks c1 REPO_FILE, c2 LIVE_PAGE, c3 LIVE_PAGE
+History read from the milestone (UTC):
+  0  2026-10-22 08:44:22  START     NONE
+  1  2026-10-22 08:45:35  ASSESS    MET   (c1 PASS, c2 PASS, c3 PASS)
+  2  2026-10-22 08:51:41  FINALIZE  MET
+record(milestone) from the funder account: the page reported "record was applied: the transaction is FINALIZED and the
+contract call succeeded". The factory read the milestone back itself (default view) and stored the summary.
+Builder page for 0xabF20c3e89d0E1C37DEAeA3B44602F4838661160 after the record: 1 on the record, 1 MET, 0 NOT_MET,
+0 with an amendment; line "Publish the Milestone Oracle web client ..." MET, finalized 2026-10-22 08:51 UTC, funder 0x6632...5350.
+Limits: this is one test milestone of the author's own page, funded and run from Studio test accounts. A MET verdict says the
+stated public checks held, not that the work is good.
+Earlier factory v0.1.0 (0x1C9eE0e275D03329a500fc654BD9dF6e90E882d3) could not record because it read the milestone with the
+"latest final" state, which did not answer on Studionet (see read-probe-studionet.txt).

@@ -1,0 +1,9 @@
+Read probe on Studionet, 2026-10-21 (contract contracts/read_probe.py v0.1.0, probe 0xd7F6ee522ea219039395207Aec9be7C277cf7f64)
+Target: milestone 0x42352FD9dB57BD25241C72E18E3E0bf19359e8A0 (created by factory v0.1.0, FINALIZED MET)
+Instant contract-to-contract reads through read_view:
+  default : OK in 1252 ms
+  final   : ERROR after 125209 ms: An unknown RPC error occurred.
+  nonfinal: OK in 1557 ms
+Earlier: factory v0.1.0 record() read the milestone with the "final" mode. Two record transactions ended LEADER_TIMEOUT, state not changed
+(0x62d998237506fc78fff1cea5fdaa8df367abe2e1cdb52c172d8aed87e2476656 after ~65 min pending, then 0x0eb857cd34d55186fa19b40110ea9d9ad5a64c17809cd11cc1053c18654196b1).
+Fix: factory v0.1.1 reads with the default view. Local simulator tests: 21 passed (evidence/glsim-tests.txt).
