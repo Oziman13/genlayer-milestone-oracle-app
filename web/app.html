@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="site.css">
 <link rel="stylesheet" href="app.css">
 <link rel="stylesheet" href="proof-workspace.css">
+<link rel="stylesheet" href="verification-workspace.css">
 </head>
 <body>
 <div class="wrap wide">
@@ -15,6 +16,7 @@
     <nav class="nav"><a href="./">Overview</a><a href="builder.html">Builder records</a><a href="skill.md">For agents</a><a href="https://github.com/Oziman13/genlayer-milestone-oracle-app">Code</a></nav></header>
 
   <main>
+  <details class="network-details" id="network-details"><summary>Network &amp; verification details <span>Studionet · evidence limits · source provenance</span></summary><div id="network-detail-body"><p class="small">Application-level finalization is distinct from GenLayer network finality. This app does not hold funds.</p></div></details>
   <div class="app-head">
     <div class="eyebrow">Studionet · no funds held</div>
     <h1>Did they deliver?</h1>
@@ -75,10 +77,15 @@
     <div class="layout">
       <div class="col">
         <div class="vslip">
-          <div class="label">Delivery milestone</div>
+          <div class="label">VERIFICATION SUMMARY / DELIVERY MILESTONE</div>
           <h2 id="title"></h2>
           <span id="verdict" class="badge"></span>
           <div class="small" id="deadline"></div>
+          <div class="verification-summary" aria-label="Milestone verification overview">
+            <div class="verification-metric"><span>CHECKS</span><strong id="summary-count">—</strong><small>Most recent assessment</small></div>
+            <div class="verification-metric"><span>PHASE</span><strong id="summary-phase">—</strong><small>Application state</small></div>
+            <div class="verification-metric"><span>ROUND</span><strong id="summary-round">—</strong><small>Assessment cycle</small></div>
+          </div>
           <div class="links"><a id="cardlink" href="#">Shareable verdict card</a></div>
           <div class="att">Attestation: <b id="att"></b></div>
         </div>
@@ -147,5 +154,6 @@
 </div>
 <script src="config.js"></script>
 <script src="app.js"></script>
+<script defer src="verification-workspace.js"></script>
 </body>
 </html>
