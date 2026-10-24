@@ -8,8 +8,13 @@ export function showProvenance(factory) {
   p.id = "factory-provenance";
   p.className = "small";
   // Visible even in embedded records: unknown factory data must not appear canonical.
-  p.textContent = (known ? "Known demo factory (historical project evidence): " : "Unverified custom factory: ") + checksum(factory) + ". " +
-    (known ? "Live code provenance has not been independently verified here. " : "Its records are claims from this address, not the known demo factory. Matching method names or a self-reported hash do not authenticate code. ") +
+  const summary = document.createElement("span"); summary.className = "factory-summary";
+  summary.textContent = (known ? "Known demo factory (historical project evidence): " : "Unverified custom factory: ") + checksum(factory) + ". ";
+  const caveats = document.createElement("span"); caveats.className = "factory-caveats";
+  caveats.textContent = (known ? "Live code provenance has not been independently verified here. " : "Its records are claims from this address, not the known demo factory. Matching method names or a self-reported hash do not authenticate code. ") +
     "Records use default state reads; contract FINALIZED is not proof of network-finalized state. " + EVIDENCE_LIMIT;
+  const compact = document.createElement("span"); compact.className = "factory-badge-summary";
+  compact.textContent = (known ? "Known demo Factory: " : "Unverified custom Factory: ") + checksum(factory) + ". App-level verdicts; network finality unverified.";
+  p.append(summary, caveats, compact);
   document.querySelector("main")?.prepend(p);
 }
