@@ -109,3 +109,13 @@ footer{border-color:var(--pj-line);color:#9bb1a7}
 @media(max-width:900px){.hero{grid-template-columns:1fr;min-height:0;padding:62px 0 75px}.hero>div:last-child{max-width:690px}.pj-stage{grid-template-columns:1fr}.pj-visual{position:relative;top:auto;grid-row:1;min-height:400px}.pj-journey-head{display:block}.pj-journey-head p{margin-top:18px}.pj-chapters{grid-template-columns:repeat(2,minmax(0,1fr))}.pj-chapter{min-height:235px}.stepper{grid-template-columns:1fr}}
 @media(max-width:620px){.top{padding:19px 0}.nav{gap:3px}.nav a{font-size:12px;padding:6px 8px}.hero{padding:44px 0 65px}.hero h1{font-size:clamp(52px,13.2vw,74px)}.lead{font-size:18px}.pj-scrollcue{margin-top:25px}#slip{padding:23px 17px}.slip h3{padding-right:95px}.pj-journey{padding:57px 0}.pj-journey-head{padding-bottom:26px}.pj-chapters{grid-template-columns:1fr}.pj-chapter{min-height:0;padding:25px 22px}.pj-visual{padding:18px;min-height:340px}.pj-visual-head{margin-bottom:32px;font-size:9px}.pj-node-core{width:40px;height:40px;font-size:11px}.pj-node:not(:last-child)::after{top:20px;left:calc(50% + 20px);width:calc(100% - 40px)}.pj-node-label{font-size:8px}.pj-readout{margin-top:27px;padding:18px}.pj-readout strong{font-size:25px}section{padding:43px 0}.tabs{grid-template-columns:1fr 1fr}.tab{padding:12px 10px;font-size:13px}}
 @media(hover:none),(pointer:coarse),(prefers-reduced-motion:reduce){.pj-ambient{display:none}#slip{transform:none!important}.pj-motion .pj-reveal{opacity:1!important;transform:none!important}}
+
+/* Interactive chapters and path nodes: pointer, keyboard and touch parity. */
+.pj-chapter[role="button"]{cursor:pointer}
+.pj-chapter[role="button"]:hover{border-color:#82b5a2;background:#1b302e}
+.pj-chapter[role="button"]:focus-visible{outline:2px solid var(--pj-lime);outline-offset:4px}
+button.pj-node-core{appearance:none;cursor:pointer;padding:0;font:800 14px var(--mono);position:relative;z-index:1}
+button.pj-node-core:hover{border-color:var(--pj-lime);box-shadow:0 0 0 4px rgba(201,255,158,.11)}
+button.pj-node-core:focus-visible{outline:2px solid var(--pj-lime);outline-offset:4px}
+.pj-chapter[role="button"],button.pj-node-core{-webkit-tap-highlight-color:rgba(201,255,158,.12)}
+@media(prefers-reduced-motion:reduce){.pj-chapter[role="button"],button.pj-node-core{transition:none}}
