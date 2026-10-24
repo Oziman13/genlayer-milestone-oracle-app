@@ -3,7 +3,7 @@
 Branch: `codex/p1-p2-correctness-remediation`.
 Baseline: `182b5cffcc27fe1452e56eef42465fb43bb22d77` (the audited mobile frontend).
 
-Scope: confirmed audit findings F01–F07. This change fixes client correctness; it does not redesign the Proof Journey, change contracts, integrate WalletConnect or establish network finality/immutability. The original contract repository is unchanged. No remote push, PR, production change, deployment, real wallet, signature or blockchain transaction was performed.
+Scope: confirmed audit findings F01–F07. This change fixes client correctness; it does not redesign the Proof Journey, change contracts, integrate WalletConnect or establish network finality/immutability. The original contract repository is unchanged. The initial remediation was local only. Final publication status is reported separately below. No production change, deployment, real wallet, signature or blockchain transaction was performed.
 
 ## Root causes and fixes
 
@@ -27,7 +27,7 @@ Scope: confirmed audit findings F01–F07. This change fixes client correctness;
 
 ## Regression coverage
 
-The new `tests/browser/correctness.test.mjs` is part of `npm test`. It serves only local files, intercepts RPC, rejects non-read RPC methods and forbids wallet signing methods. It adds **43 test cases**:
+The new `tests/browser/correctness.test.mjs` is part of `npm test`. It serves only local files, intercepts RPC, rejects non-read RPC methods and forbids wallet signing methods. It adds **45 test cases**:
 
 - Five distinct delayed read stages: state, attestation, history, membership and stored record. A later address always wins.
 - Late success versus latest failure, late failure versus latest success, pending refresh and A–B–A input changes without a successful new load.
@@ -46,7 +46,7 @@ Existing tests were not weakened or disabled. In particular, the previously fail
 
 ### Before/after negative controls
 
-The new harness was also pointed at an archived, unmodified `182b5cff` web/contracts tree outside the checkout. Four selected tests failed there as intended: stale state response, custom Factory badge visibility, 768px landing overflow and Factory creation explanation. These are negative controls, not unresolved failures in the final branch. All four pass in the current 43-case suite.
+The new harness was also pointed at an archived, unmodified `182b5cff` web/contracts tree outside the checkout. Four selected tests failed there as intended: stale state response, custom Factory badge visibility, 768px landing overflow and Factory creation explanation. These are negative controls, not unresolved failures in the final branch. All four pass in the current 45-case suite.
 
 ## Completed verification
 
@@ -54,10 +54,10 @@ The new harness was also pointed at an archived, unmodified `182b5cff` web/contr
 | --- | --- |
 | Existing mocked wallet browser checks | **124 passed, 0 failed** |
 | Existing page/helper browser checks | **56 passed, 0 failed** |
-| New read-only correctness regressions | **43 passed, 0 failed**, no skipped/cancelled tests or signing requests |
+| New read-only correctness regressions | **45 passed, 0 failed**, no skipped/cancelled tests or signing requests |
 | App direct contract + local simulator tests | **199 passed** (168 direct + 31 glsim), one existing plugin rewrite warning |
 | Original direct contract tests | **153 passed**, one existing plugin rewrite warning |
-| Total suite tests/checks | **575 passed, 0 failed** |
+| Total suite tests/checks | **577 passed, 0 failed** |
 | Frontend build | Seven bundles built; independent output-directory rebuild is **7/7 byte-identical** to checked-in outputs |
 | Whitespace check | `git diff --check` passes |
 | Visual checks | 22 read-only Chromium screenshots: seven pages at 390/768/1440px plus 360×150 custom Factory embed; representative mobile cards, badge and landing screenshots inspected |
@@ -75,6 +75,16 @@ Logs for this instance are under `/workspace/setup/remediation/`: `final-browser
 - Existing multi-tab pending-state atomicity, malicious/corrupt local storage, provider behavior after a signature begins and replacement transaction intent remain separate operational questions. This patch does not change transaction semantics to speculate around them.
 - P3 tablet tag wrapping and duplicate chapter accessible names from the audit are intentionally outside this P1/P2 remediation. No new connection mechanism or visual redesign was added.
 
+## Final independent review against latest main
+
+The fetched `origin/main` remains `182b5cffcc27fe1452e56eef42465fb43bb22d77`. All 26 changed files were reviewed, including source/bundle correspondence and presentation-only changes. Contracts, addresses/configuration and the dependency lockfile remain unchanged. Pending recovery, nonce handling and contract authorization rules retain their existing implementations.
+
+One additional confirmed provider race was fixed: a provider replaced without an initialization event could be used for the network check while the write client still referenced the previous provider during the 500ms discovery interval. Preflight now refreshes provider discovery immediately; the final chain read also refreshes after its await and requires provider identity consistency. The existing account/client guards therefore abort before the wallet build. Two read-only regression cases cover replacement during nonce preflight and inside the final chain read. The nonce case fails against the pre-review bundle and passes after the correction.
+
+Listener review: subscribers are removed by the returned unsubscribe function and the discovery timer/window listeners stop when the last subscriber leaves. Provider event bindings remain one set per provider object; they are intentionally retained and gated by active identity, including for legacy providers without removal APIs. Inactive-provider events cannot update subscribers. This is not a claim that every provider's event listeners are physically detached.
+
+Final validation reruns the full browser suite: 124 wallet checks, 56 existing page checks and 45 correctness tests (225 total). The unchanged Python suites previously passed 199 app and 153 original-contract tests; they are not newly executed by this frontend-only final review. Seven independent bundle rebuilds are byte-identical and whitespace checks pass. Review logs: `/tmp/mo-final-review-all.log`, `/tmp/mo-provider-negative.log`, `/tmp/mo-provider-positive.log`, `/tmp/mo-final-review-build.log`. Real device/live-network limits above continue to apply.
+
 ## Proposed PR description
 
 **Title:** Fix stale read/action binding, provider initialization and mobile provenance regressions
@@ -83,7 +93,7 @@ Logs for this instance are under `/workspace/setup/remediation/`: `final-browser
 
 **Change:** Bind completed reads and action preflight to an address/generation; invalidate on input changes; guard Builder results; validate/catch structured read failures. Add idempotent late-provider discovery with stale-connection/disconnect guards and reactive mobile guidance, while retaining transaction and pending-recovery behavior. Restore compact, always-visible Factory identity/finality warnings; contain the hero decoration and explain Factory/direct creation accurately. Preserve the cards, desktop table, Proof Journey design and current contract addresses.
 
-**Validation:** 575 tests/checks pass (124 wallet, 56 existing pages, 43 new read-only Chromium regressions, 199 app contract/simulator, 153 original contract). All seven rebuilt bundles match sources. Four targeted negative controls fail on the audited baseline and pass after correction. Chromium covers 390/768/1440px plus known/custom 360px embeds. No actual signatures, transactions, deployed contract changes, live Pages updates or network-finality assertions.
+**Validation:** 577 tests/checks pass (124 wallet, 56 existing pages, 45 new read-only Chromium regressions, 199 app contract/simulator, 153 original contract). All seven rebuilt bundles match sources. Four targeted negative controls fail on the audited baseline and pass after correction. Chromium covers 390/768/1440px plus known/custom 360px embeds. No actual signatures, transactions, deployed contract changes, live Pages updates or network-finality assertions.
 
 **Limits:** Actual mobile wallets/devices and live-network behavior remain unverified. No WalletConnect, contract/protocol changes or unrelated redesign. Review the request-generation guards, provider lifecycle and badge disclosure before merge; deployment requires separate explicit approval.
 

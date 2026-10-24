@@ -168,6 +168,31 @@ try {
   await c.p.evaluate(()=>{delete window.ethereum;window.dispatchEvent(new Event('ethereum#initialized'));});
   assert.match(await c.p.locator('#wstatus').innerText(),/No browser wallet/);assert.equal(await c.p.locator('#mobile-wallet-help').isVisible(),true);
  });
+ await check('P1: silent provider replacement during nonce preflight cannot sign with the old client',{initialProvider:true},async c=>{
+  await c.open(`app.html?address=${M}`);await c.loaded();await c.connect();
+  const gate=c.gate();let held=false;c.nonce=async()=>{if(!held){held=true;await gate.promise;}return '0x0';};
+  await c.p.click('#b_fin');await until(()=>held);
+  // Replace in the same turn that resumes preflight, before property polling can detect it.
+  await c.p.evaluate(()=>window.installProvider('silent',false));gate.resolve();
+  await c.p.waitForFunction(()=>/Wallet changed|Wallet account changed/.test(document.getElementById('txmsg').textContent));
+  assert.equal(await c.p.evaluate(()=>localStorage.getItem('mo_pending_tx')),null);
+  assert.equal(await c.p.locator('#wstatus').innerText(),'Not connected.');
+ });
+ await check('P1: provider replacement inside the final chain read aborts before signing',{initialProvider:true},async c=>{
+  await c.open(`app.html?address=${M}`);await c.loaded();await c.connect();
+  await c.p.evaluate(()=>{
+   const p=window.ethereum,request=p.request.bind(p);let chains=0;
+   p.request=async args=>{
+    const result=await request(args);
+    if(args.method==='eth_chainId'&&++chains===2)window.installProvider('during-chain',false);
+    return result;
+   };
+  });
+  await c.p.click('#b_fin');
+  await c.p.waitForFunction(()=>document.getElementById('txmsg').textContent.includes('Wallet changed before signing'));
+  assert.equal(await c.p.evaluate(()=>localStorage.getItem('mo_pending_tx')),null);
+  assert.equal(await c.p.locator('#wstatus').innerText(),'Not connected.');
+ });
  for(const page of ['app.html','deploy-factory.html'])await check(`P1: ${page} disconnect during connection cannot revive an old account`,{initialProvider:true},async c=>{
   await c.open(page);
   await c.p.evaluate(()=>{

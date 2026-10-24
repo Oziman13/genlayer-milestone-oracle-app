@@ -23,7 +23,7 @@ export class WalletError extends Error {
 export const isUserRejection = e =>
   !!e && (e.code === 4001 || e.code === "ACTION_REJECTED" || /user (rejected|denied)|rejected the request/i.test(String(e.message || e)));
 
-export async function ensureNetwork(p = provider()) {
+export async function ensureNetwork(p = refreshWalletProvider()) {
   if (!p) throw new WalletError("NO_WALLET", "No browser wallet found.");
   const current = await p.request({ method: "eth_chainId" });
   if (provider() !== p) throw new WalletError("PROVIDER_CHANGED", "Wallet provider changed; reconnect.");
@@ -78,7 +78,12 @@ export async function connectWallet() {
 }
 
 export async function currentNetworkOk() {
-  try { return String(await provider().request({ method: "eth_chainId" })).toLowerCase() === CHAIN_ID_HEX; } catch { return false; }
+  try {
+    const p = refreshWalletProvider();
+    const chain = await p.request({ method: "eth_chainId" });
+    refreshWalletProvider();
+    return provider() === p && String(chain).toLowerCase() === CHAIN_ID_HEX;
+  } catch { return false; }
 }
 
 // One binding per provider object. Legacy providers without removeListener are safe:
