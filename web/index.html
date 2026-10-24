@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="site.css">
 <link rel="stylesheet" href="landing.css">
 <link rel="stylesheet" href="proof-journey.css">
+<link rel="stylesheet" href="proof-editorial.css">
 <script>
   // Old links (?address=0x...) opened the app directly; keep them working.
   if (new URLSearchParams(location.search).has("address")) location.replace("app.html" + location.search);
@@ -104,26 +105,27 @@
     </div>
   </section>
 
-  <section id="how">
-    <p class="eyebrow">How it works</p>
-    <h2>One milestone, four moves</h2>
-    <div class="stepper" id="stepper">
-      <div class="tabs" role="tablist" aria-label="Steps">
-        <button class="tab" role="tab" aria-selected="true" aria-controls="p1" id="t1" type="button"><b>1</b>Write the checks</button>
-        <button class="tab" role="tab" aria-selected="false" aria-controls="p2" id="t2" type="button"><b>2</b>Ship the work</button>
-        <button class="tab" role="tab" aria-selected="false" aria-controls="p3" id="t3" type="button"><b>3</b>Validators read</button>
-        <button class="tab" role="tab" aria-selected="false" aria-controls="p4" id="t4" type="button"><b>4</b>Window, then verdict</button>
+  <section id="how" class="pj-evidence-section" aria-labelledby="evidence-heading">
+    <div class="pj-section-heading pj-reveal">
+      <div><p class="eyebrow">02 / Look inside the result</p><h2 id="evidence-heading">A verdict you can inspect.</h2></div>
+      <p>Instead of taking a green checkmark on trust, open the evidence behind each result. These example rows illustrate the fields exposed by a milestone, not a new live network reading.</p>
+    </div>
+    <div class="pj-evidence-layout">
+      <div class="pj-evidence-board pj-reveal">
+        <div class="pj-board-top"><span><span class="pj-led"></span> CHECKLIST / EXAMPLE</span><span>03 PUBLIC CHECKS</span></div>
+        <div class="pj-evidence-row"><span class="pj-evidence-id">01</span><div><strong>Repository file</strong><small>REPO_FILE · README.md contains a required phrase</small></div><span class="pj-evidence-status">PASS</span></div>
+        <div class="pj-evidence-row"><span class="pj-evidence-id">02</span><div><strong>Live endpoint</strong><small>LIVE_PAGE · public page responds and contains expected text</small></div><span class="pj-evidence-status">PASS</span></div>
+        <div class="pj-evidence-row"><span class="pj-evidence-id">03</span><div><strong>Agent instructions</strong><small>REPO_FILE · skill.md published and inspectable</small></div><span class="pj-evidence-status">PASS</span></div>
+        <div class="pj-board-bottom"><span>CHECK RESULTS</span><strong>3 / 3 PASS</strong></div>
       </div>
-      <div>
-        <div class="panel" id="p1" role="tabpanel" aria-labelledby="t1"><h3>The funder writes the checks</h3><p>A release tag, a file that must say something, a page that must be live, or a claim a page must support. All public, all fixed before the work starts.</p><pre>readme  REPO_FILE   README.md contains "Honest limits"
-site    LIVE_PAGE   the site answers 200 and says "Did they deliver?"</pre></div>
-        <div class="panel" id="p2" role="tabpanel" aria-labelledby="t2" hidden><h3>The builder ships</h3><p>Anyone can open the milestone and see exactly what is being checked, with no account needed to look.</p><pre>deadline: end of 2026-10-31 (UTC)
-builder:  0xabF2…1160</pre></div>
-        <div class="panel" id="p3" role="tabpanel" aria-labelledby="t3" hidden><h3>Validators read the evidence</h3><p>Each validator fetches the sources itself. Plain facts must match exactly, and a failing check is shown, never hidden. A source that is down shows ERROR, not FAIL.</p><pre>readme  PASS
-site    PASS
-skill   PASS   → provisional MET</pre></div>
-        <div class="panel" id="p4" role="tabpanel" aria-labelledby="t4" hidden><h3>A window, then a verdict</h3><p>The builder may point a failing check at the right place, only that, at most three times. After the window anyone can finalize, and finalizing re-reads every source.</p><pre>START → ASSESS → (challenge window) → FINALIZE
-verdict MET · finalized · on the record</pre></div>
+      <div class="pj-evidence-note pj-reveal">
+        <div class="pj-note-index">READ THE FINE PRINT / 001</div>
+        <h3>Evidence is not a quality score.</h3>
+        <p>A <strong>MET</strong> result states that the specified public checks passed during assessment. It does not independently prove the work's quality, historical delivery by the deadline or network-level finality of a downstream record.</p>
+        <div class="pj-note-rule"><span>PASS</span><span>Requirement observed</span></div>
+        <div class="pj-note-rule"><span>FAIL</span><span>Requirement not met</span></div>
+        <div class="pj-note-rule"><span>ERROR</span><span>Source unavailable; not a work failure</span></div>
+        <a class="pj-text-link" href="app.html?address=0xDf63AB2C788c452e5E0088E6767Fe78e6e93ce30">Inspect the actual Studionet result ↗</a>
       </div>
     </div>
   </section>
@@ -147,11 +149,13 @@ verdict MET · finalized · on the record</pre></div>
         <p>Milestones created through the factory are the only ones the record accepts, and the factory reads each verdict back from the milestone contract. Nobody types a result in.</p>
         <div class="btns"><a class="btn alt" href="builder.html">Look up a builder</a></div>
       </div>
-      <div class="sheet">
-        <h3>What a record line says</h3>
-        <p>Who funded it, who built it, which checks held, how many times the builder amended where a check looks, and when it was finalized.</p>
-        <h3>What it does not say</h3>
-        <p>That the work was good, that the funder was fair, or that one person is behind one address. Treat a record as one input, not a credit score.</p>
+      <div class="pj-record-preview" aria-label="Illustrative delivery record format">
+        <div class="pj-record-top"><span>BUILDER DELIVERY RECORD</span><span class="pj-led">STUDIONET</span></div>
+        <div class="pj-record-heading"><div><small>RECORDED OUTCOME</small><strong>One milestone. One claim.</strong></div><span class="pj-record-verdict">MET</span></div>
+        <div class="pj-record-line"><span>Evidence outcome</span><b>3 / 3 PASS</b></div>
+        <div class="pj-record-line"><span>Application phase</span><b>FINALIZED</b></div>
+        <div class="pj-record-line"><span>Source of record</span><b>Factory-created child</b></div>
+        <p class="pj-record-footnote">Illustrative record format, not a live Builder Record query. Results reflect public checks, not identity, reputation or historical deadline proof.</p>
       </div>
     </div>
   </section>
@@ -188,11 +192,7 @@ verdict MET · finalized · on the record</pre></div>
 <script src="config.js"></script>
 <script src="landing.js"></script>
 <script defer src="proof-journey.js"></script>
-<script>
-document.documentElement.classList.add("js");
-(function(){var tabs=[].slice.call(document.querySelectorAll(".tab"));function pick(i){tabs.forEach(function(t,j){t.setAttribute("aria-selected",j===i);document.getElementById("p"+(j+1)).hidden=j!==i;});}
-tabs.forEach(function(t,i){t.onclick=function(){pick(i)};t.onkeydown=function(e){if(e.key==="ArrowDown"||e.key==="ArrowRight"){tabs[(i+1)%4].focus();pick((i+1)%4)}if(e.key==="ArrowUp"||e.key==="ArrowLeft"){tabs[(i+3)%4].focus();pick((i+3)%4)}}});})();
-</script>
+
 <script>document.getElementById("repoC").href=MO_CONFIG.REPO_CONTRACT;document.getElementById("repoA").href=MO_CONFIG.REPO_APP;</script>
 </body>
 </html>
