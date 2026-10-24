@@ -21,12 +21,33 @@
     if(index===active)return;
     active=index;
     chapters.forEach((el,i)=>{el.dataset.active=String(i===index)});
-    nodes.forEach((el,i)=>{el.dataset.lit=String(i<=index)});
+    nodes.forEach((el,i)=>{el.dataset.lit=String(i<=index);const button=el.querySelector('[data-pj-step]');if(button)button.setAttribute('aria-pressed',String(i===index))});
     title.textContent=scenes[index][0];desc.textContent=scenes[index][1];signal.textContent=scenes[index][2];
     scene.dataset.scene=String(index+1);
   }
   select(0);
   const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // Both chapter cards and diagram nodes are direct, keyboard-accessible navigation.
+  // Scroll the target chapter into the stage viewport so subsequent scroll tracking
+  // continues naturally rather than immediately reverting the selected step.
+  function goToStep(index){
+    if(!Number.isInteger(index)||index<0||index>=chapters.length)return;
+    select(index);
+    chapters[index].scrollIntoView({behavior:reduced?'auto':'smooth',block:'center'});
+  }
+  chapters.forEach((el,index)=>{
+    el.addEventListener('click',()=>goToStep(index));
+    el.addEventListener('keydown',event=>{
+      if(event.key==='Enter'||event.key===' '){
+        event.preventDefault();
+        goToStep(index);
+      }
+    });
+  });
+  nodes.forEach((el,index)=>{
+    const button=el.querySelector('[data-pj-step]');
+    if(button)button.addEventListener('click',()=>goToStep(index));
+  });
   if(!reduced&&'IntersectionObserver'in window){
     root.classList.add('pj-motion');
     const reveals=[...document.querySelectorAll('.pj-reveal')];
