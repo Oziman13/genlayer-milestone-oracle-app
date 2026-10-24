@@ -1,0 +1,24 @@
+/* Builder Delivery Ledger — finishing refinements. */
+.builder-network-details{margin:17px 0 0;border:1px solid #35534b;border-radius:12px;background:#122322;overflow:hidden}
+.builder-network-details summary{display:flex;align-items:center;gap:11px;flex-wrap:wrap;padding:16px 20px;list-style:none;cursor:pointer;font-size:14px;font-weight:800;color:#e2f8e8}
+.builder-network-details summary::-webkit-details-marker{display:none}
+.builder-network-details summary::before{content:"ⓘ";display:inline-grid;place-items:center;flex:0 0 23px;width:23px;height:23px;border-radius:50%;border:1px solid #638e77;color:#c7f2d3;font-size:13px}
+.builder-network-details summary span{font-weight:550;margin-left:auto;color:#a8c8b7;font-size:12px}
+.builder-network-details[open] summary{border-bottom:1px solid #35534b}
+.builder-network-details summary:focus-visible{outline:2px solid #ceffa9;outline-offset:-3px}
+#builder-network-content{padding:18px 22px}
+#builder-network-content>p{max-width:100ch;margin:0 0 12px;font-size:13px;line-height:1.8;color:#bbd2c5;overflow-wrap:anywhere}
+#builder-network-content #factory-provenance{margin:0;border:0;border-top:1px solid #385a4b;padding:15px 0 0;background:none;font-size:13px;line-height:1.85;color:#c1d4c8}
+.ledger-section{padding-top:49px}
+#out .sheet{min-height:0}
+#out .sheet.ledger-single-record{padding-bottom:clamp(20px,2.4vw,30px)}
+#out .sheet.ledger-single-record .counts{margin-bottom:20px}
+#out .sheet.ledger-single-record table td{padding-block:15px}
+#out .sheet.ledger-single-record .notice{margin-top:17px!important;margin-bottom:0;display:block;width:100%;max-width:none;box-sizing:border-box;padding:15px 19px;font-size:13px;line-height:1.65}
+#out .sheet .ledger-view-evidence{display:block;margin-top:7px;font-size:12px;letter-spacing:.025em;font-weight:750;color:#c1eeb4;text-decoration:none}
+#out .sheet td:first-child a:hover .ledger-view-evidence{text-decoration:underline;text-underline-offset:3px}
+#out .sheet td:first-child a:focus-visible{outline:2px solid #caff9e;outline-offset:4px;border-radius:3px}
+body.badge .builder-network-details{display:none!important}
+body.badge #out .sheet .ledger-view-evidence{display:none}
+body.badge #out .sheet.ledger-single-record{padding:11px}
+@media(max-width:650px){.builder-network-details summary span{width:100%;margin-left:33px}.builder-network-details summary{font-size:13px}.ledger-section{padding-top:28px}}
