@@ -8,12 +8,15 @@
 <link rel="icon" href="logo.png">
 <link rel="stylesheet" href="site.css">
 <link rel="stylesheet" href="landing.css">
+<link rel="stylesheet" href="proof-journey.css">
 <script>
   // Old links (?address=0x...) opened the app directly; keep them working.
   if (new URLSearchParams(location.search).has("address")) location.replace("app.html" + location.search);
 </script>
 </head>
 <body>
+<div class="pj-progress" aria-hidden="true"></div>
+<div class="pj-ambient" aria-hidden="true"></div>
 <div class="wrap">
   <header class="top">
     <a class="brand" href="./"><img src="logo.png" alt="">Milestone Oracle</a>
@@ -26,13 +29,14 @@
   <div class="hero">
     <div>
       <p class="eyebrow">GenLayer · Studionet · holds no funds</p>
-      <h1>Did they deliver?</h1>
+      <h1>Did they <em>deliver?</em></h1>
       <p class="lead">Name the checks before the work starts. Validators read the public evidence, the builder gets a fair window to answer, and the verdict stays on the record.</p>
       <div class="btns">
         <a class="btn" href="app.html">Set up a milestone</a>
         <a class="btn alt" id="readlink" href="app.html?address=0xDf63AB2C788c452e5E0088E6767Fe78e6e93ce30">Read a real verdict</a>
       </div>
       <p style="margin-top:16px;color:var(--muted);font-size:14px">Test network. Reading needs no wallet.</p>
+      <div class="pj-scrollcue" aria-hidden="true"><span class="shaft"></span> Follow the evidence</div>
     </div>
 
     <div>
@@ -51,6 +55,54 @@
     </figure>
     </div>
   </div>
+
+
+  <section class="pj-journey" id="proof-journey" aria-labelledby="pj-heading">
+    <div class="pj-journey-head pj-reveal">
+      <div><p class="eyebrow">01 / Proof, not promises</p><h2 id="pj-heading">A claim becomes a traceable decision.</h2></div>
+      <p>Watch the route from written criteria to public evidence, validator assessment and a recorded verdict. Every step has a different responsibility—and a different limit.</p>
+    </div>
+    <div class="pj-stage">
+      <div class="pj-chapters" aria-label="The four stages of milestone verification">
+        <article class="pj-chapter pj-reveal" data-active="true">
+          <div class="pj-no">01 — SPECIFICATION</div>
+          <h3>Make the promise testable.</h3>
+          <p>A funder defines explicit public checks before work begins. A successful milestone must satisfy those checks—not someone's subjective impression.</p>
+        </article>
+        <article class="pj-chapter pj-reveal" data-active="false">
+          <div class="pj-no">02 — EVIDENCE</div>
+          <h3>Point to something real.</h3>
+          <p>The builder publishes verifiable sources: a repository file, GitHub release, live page or documented deliverable. The sources remain inspectable.</p>
+        </article>
+        <article class="pj-chapter pj-reveal" data-active="false">
+          <div class="pj-no">03 — ASSESSMENT</div>
+          <h3>Let validators examine it.</h3>
+          <p>GenLayer validators independently evaluate the public sources. PASS and FAIL are distinct from ERROR, which means the source could not be read.</p>
+        </article>
+        <article class="pj-chapter pj-reveal" data-active="false">
+          <div class="pj-no">04 — RECORD</div>
+          <h3>Keep the decision inspectable.</h3>
+          <p>After the challenge window, finalization reassesses sources and records the application verdict. The Builder Delivery Record accepts Factory-created milestones.</p>
+        </article>
+      </div>
+      <div class="pj-visual" id="pj-scene" data-scene="1" aria-label="Animated illustration of the four verification stages">
+        <div class="pj-visual-head"><span>VERIFICATION PATH / 001</span><span class="pj-led">PROCESS MODEL</span></div>
+        <div class="pj-nodes" aria-hidden="true">
+          <div class="pj-node" data-lit="true"><span class="pj-node-core">01</span><span class="pj-node-label">CRITERIA</span></div>
+          <div class="pj-node" data-lit="false"><span class="pj-node-core">02</span><span class="pj-node-label">EVIDENCE</span></div>
+          <div class="pj-node" data-lit="false"><span class="pj-node-core">03</span><span class="pj-node-label">CONSENSUS</span></div>
+          <div class="pj-node" data-lit="false"><span class="pj-node-core">04</span><span class="pj-node-label">VERDICT</span></div>
+        </div>
+        <div class="pj-readout" aria-live="off">
+          <div class="subhead">CURRENT STAGE / EXPLANATION</div>
+          <strong id="pj-read-title">Define the evidence</strong>
+          <span id="pj-read-desc">The funder defines public checks before the milestone begins.</span>
+          <div class="pj-signal" id="pj-read-signal">CRITERIA REGISTERED</div>
+        </div>
+        <p class="pj-disclaimer">Conceptual process illustration, not a live consensus feed. Application-level FINALIZED does not independently establish network finality.</p>
+      </div>
+    </div>
+  </section>
 
   <section id="how">
     <p class="eyebrow">How it works</p>
@@ -135,6 +187,7 @@ verdict MET · finalized · on the record</pre></div>
 </div>
 <script src="config.js"></script>
 <script src="landing.js"></script>
+<script defer src="proof-journey.js"></script>
 <script>
 document.documentElement.classList.add("js");
 (function(){var tabs=[].slice.call(document.querySelectorAll(".tab"));function pick(i){tabs.forEach(function(t,j){t.setAttribute("aria-selected",j===i);document.getElementById("p"+(j+1)).hidden=j!==i;});}
