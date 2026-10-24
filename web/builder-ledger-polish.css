@@ -44,3 +44,12 @@ body.badge #out .sheet.ledger-single-record{padding:11px}
   .ledger-mobile-view:hover{background:#e0ffbf}
 }
 body.badge #out .ledger-mobile-cards{display:none!important}
+
+/* A badge remains compact without concealing its selected Factory or finality limits. */
+body.badge #factory-provenance{display:block!important;font-size:10px;line-height:1.25;margin:0 0 4px;padding:0;border:0;background:none;overflow-wrap:anywhere}
+body.badge #factory-provenance .factory-summary,body.badge #factory-provenance .factory-caveats{display:none}
+body.badge #factory-provenance .factory-badge-summary{display:block}
+body.badge .wrap{padding:4px}
+body.badge #out .sheet{padding:6px}
+body.badge #out .sheet>h2.mono::before{display:none}
+body.badge #out .counts>div{padding:5px}

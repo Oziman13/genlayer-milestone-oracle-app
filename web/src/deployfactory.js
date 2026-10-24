@@ -6,7 +6,7 @@ let address = null, wallet = null, busy = false, oracleCode = "", factoryCode = 
 
 const locked = () => busy || !!loadPending();
 const updateButton = () => { $("deploy").disabled = locked() || !address || !oracleSha; };
-watchWallet({onAccounts: () => { address = null; wallet = null; $("who").textContent = "Account changed; reconnect."; updateButton(); }, onChain: () => { address = null; wallet = null; $("who").textContent = "Network changed; reconnect."; updateButton(); }});
+watchWallet({onProvider: () => { address = null; wallet = null; $("who").textContent = "Not connected."; updateButton(); }, onDisconnect: () => { address = null; wallet = null; $("who").textContent = "Wallet disconnected; reconnect."; updateButton(); }, onAccounts: () => { address = null; wallet = null; $("who").textContent = "Account changed; reconnect."; updateButton(); }, onChain: () => { address = null; wallet = null; $("who").textContent = "Network changed; reconnect."; updateButton(); }});
 
 const sha256 = async text => "0x" + [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text)))].map(b => b.toString(16).padStart(2, "0")).join("");
 const say = (t, err = false) => { $("msg").className = "notice" + (err ? " err" : ""); $("msg").textContent = t; };

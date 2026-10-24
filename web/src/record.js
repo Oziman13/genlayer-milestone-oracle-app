@@ -1,4 +1,5 @@
 import { getAddress } from "viem";
+import { validChecks, validTimestamp } from "./read-validation.js";
 
 // The network looks contracts up by their checksum spelling (mixed upper/lower case); an all-lowercase spelling is not found.
 // The factory stores addresses in lowercase, so every page converts before it reads or writes.
@@ -12,6 +13,7 @@ export function summaryView(raw) {
   let o;
   try { o = typeof raw === "string" ? JSON.parse(raw) : raw; } catch { return null; }
   if (!o || typeof o !== "object" || !Array.isArray(o.milestones)) return null;
+  if (o.milestones.some(r => r && validAddress(r.milestone) && ["MET", "NOT_MET"].includes(r.verdict) && !validTimestamp(r.finalized_at))) return null;
   const n = x => (Number.isFinite(x) && x >= 0 ? Math.floor(x) : 0);
   const rows = o.milestones
     .filter(r => r && validAddress(r.milestone) && (r.verdict === "MET" || r.verdict === "NOT_MET"))
@@ -35,7 +37,7 @@ export function recordState(isFactoryMilestone, state, recordRaw) {
 // What the shareable verdict card shows. Only a FINALIZED MET/NOT_MET gets a verdict stamp; anything else is
 // labelled as not final so a provisional reading can never be shared as a result.
 export function cardView(state, attestation) {
-  if (!state || !Array.isArray(state.checks)) return null;
+  if (!state || !validChecks(state.checks)) return null;
   const final = state.finalized === 1 && state.phase === "FINALIZED";
   const att = attestation === "MET" || attestation === "NOT_MET" ? attestation : "";
   const verdict = final && (state.final_verdict === "MET" || state.final_verdict === "NOT_MET") ? state.final_verdict : "";

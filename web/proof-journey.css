@@ -26,7 +26,7 @@ a{color:var(--pj-lime)}a:hover{color:#f2ffc4}
 .btn:hover{filter:none;transform:translateY(-2px);box-shadow:0 10px 30px rgba(193,250,154,.12)}
 .btn.alt{background:transparent;color:#e0f2e6;border-color:#4b5f5a}.btn.alt:hover{background:#1b2b29;color:#f6fff8}
 .hero{min-height:680px;grid-template-columns:minmax(0,1.1fr) minmax(350px,.9fr);gap:clamp(36px,6vw,85px);padding:90px 0 100px;position:relative;align-items:center}
-.hero::before{content:"";position:absolute;pointer-events:none;z-index:-1;width:65%;height:80%;right:-10%;top:0;background:radial-gradient(ellipse,rgba(108,199,173,.1),transparent 70%)}
+.hero::before{content:"";position:absolute;pointer-events:none;z-index:-1;width:65%;height:80%;right:0;top:0;background:radial-gradient(ellipse,rgba(108,199,173,.1),transparent 70%)}
 .hero h1{font-weight:800;font-size:clamp(62px,6.8vw,105px);line-height:.94;letter-spacing:-.085em;max-width:10ch;text-wrap:balance;margin-bottom:30px}
 .hero h1 em{font-style:normal;color:var(--pj-lime)}
 .lead{font-size:clamp(18px,1.7vw,22px);line-height:1.65;color:#b2c8c0;max-width:39ch}

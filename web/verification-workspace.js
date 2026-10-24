@@ -3,11 +3,7 @@
 (()=>{
   "use strict";
   const $=id=>document.getElementById(id);
-  const source=$("factory-provenance");
-  const target=$("network-detail-body");
-  if(source&&target){
-    target.appendChild(source); // Preserve all existing provenance/limitations verbatim.
-  }
+  // Keep essential provenance visible before any action; do not move it into details.
   const app=$("app"),checks=$("checks"),phase=$("phase"),round=$("round");
   const summaryCount=$("summary-count"),summaryPhase=$("summary-phase"),summaryRound=$("summary-round");
   if(!app||!checks||!phase||!round||!summaryCount||!summaryPhase||!summaryRound)return;

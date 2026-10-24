@@ -5,9 +5,14 @@
   const copy=document.getElementById("copy-wallet-url");
   const status=document.getElementById("copy-wallet-message");
   if(!panel||!copy||!status)return;
-  const isMobile=matchMedia("(max-width: 720px), (pointer: coarse)").matches;
-  const injected=!!(window.ethereum&&typeof window.ethereum.request==="function");
-  panel.hidden=!isMobile||injected;
+  const mobile=matchMedia("(max-width: 720px), (pointer: coarse)");
+  const update=()=>{
+    const injected=!!(window.ethereum&&typeof window.ethereum.request==="function");
+    panel.hidden=!mobile.matches||injected;
+  };
+  for(const event of ["mo:providerchange","ethereum#initialized","pageshow","focus"])addEventListener(event,update);
+  mobile.addEventListener?.("change",update);
+  update();
   copy.addEventListener("click",async()=>{
     try{
       await navigator.clipboard.writeText(location.href);

@@ -60,7 +60,7 @@
 footer{margin-top:42px}
 /* The badge is an embeddable data widget, not a cropped full-page design. */
 body.badge{background:#12211f}
-body.badge header,body.badge .intro,body.badge .ledger-hero-graphic,body.badge .ledger-search,body.badge .ledger-interpretation,body.badge footer,body.badge details,body.badge #factory-provenance{display:none!important}
+body.badge header,body.badge .intro,body.badge .ledger-hero-graphic,body.badge .ledger-search,body.badge .ledger-interpretation,body.badge footer,body.badge details{display:none!important}
 body.badge .wrap{max-width:none;padding:8px}
 body.badge .ledger-section{padding:0}
 body.badge #out .sheet{padding:11px;border:0;border-radius:6px;overflow:hidden}

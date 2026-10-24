@@ -1,10 +1,7 @@
 /* Builder Ledger presentation enhancement — no RPC, wallet or transaction access. */
 (()=>{
   "use strict";
-  const disclosure=document.getElementById("builder-network-content");
-  const provenance=document.getElementById("factory-provenance");
-  // Keep every provenance and finality caveat intact, including custom-factory warnings.
-  if(disclosure&&provenance)disclosure.appendChild(provenance);
+  // Essential Factory identity and trust warnings remain outside collapsible content.
   const out=document.getElementById("out");
   if(!out)return;
   function enhance(){
