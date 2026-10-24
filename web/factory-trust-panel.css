@@ -1,0 +1,53 @@
+/* Visible Factory provenance is a trust disclosure, not a tooltip.
+   The original text remains intact; badge embedding keeps its compact variant. */
+body:not(.badge) main > #factory-provenance{
+  display:grid;
+  grid-template-columns:minmax(0,1fr);
+  width:100%;
+  max-width:none;
+  margin:16px 0 14px;
+  padding:20px clamp(18px,2.4vw,28px) 21px;
+  border:1px solid #4a6c5d;
+  border-left:3px solid #b7ec9d;
+  border-radius:13px;
+  background:linear-gradient(115deg,rgba(61,113,88,.25),rgba(19,39,38,.87));
+  box-shadow:none;
+  color:#bbd3c5;
+  font-size:12px;
+  line-height:1.7;
+  overflow-wrap:anywhere;
+}
+body:not(.badge) main > #factory-provenance::before{
+  content:"FACTORY PROVENANCE / TRUST LIMITS";
+  display:block;
+  margin-bottom:11px;
+  font:750 10px/1.45 var(--mono);
+  letter-spacing:.14em;
+  color:#d5ffba;
+}
+body:not(.badge) main > #factory-provenance .factory-summary{
+  display:block;
+  margin-bottom:8px;
+  color:#eef9f0;
+  font-size:13px;
+  font-weight:700;
+  line-height:1.65;
+  overflow-wrap:anywhere;
+}
+body:not(.badge) main > #factory-provenance .factory-caveats{
+  display:block;
+  max-width:110ch;
+  color:#b6cfc1;
+  line-height:1.8;
+}
+body:not(.badge) main > #factory-provenance .factory-badge-summary{display:none}
+@media(max-width:650px){
+  body:not(.badge) main > #factory-provenance{
+    margin:12px 0 16px;
+    padding:17px 16px;
+    border-radius:11px;
+    font-size:12px;
+  }
+  body:not(.badge) main > #factory-provenance .factory-summary{font-size:12px}
+}
+/* Do not interfere with mobile result cards or the 360x150 embed. */
