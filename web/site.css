@@ -1,6 +1,9 @@
 /* Milestone Oracle: shared look for the landing, builder and card pages.
    Idea: a delivery slip. Paper-white sheets, a perforated edge, one orange stamp for the verdict. */
-@import url("https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;700;800&display=swap");
+@font-face{font-family:"Schibsted Grotesk";font-style:normal;font-weight:400;font-display:swap;src:url("fonts/schibsted-grotesk-latin-400-normal.woff2") format("woff2")}
+@font-face{font-family:"Schibsted Grotesk";font-style:normal;font-weight:500;font-display:swap;src:url("fonts/schibsted-grotesk-latin-500-normal.woff2") format("woff2")}
+@font-face{font-family:"Schibsted Grotesk";font-style:normal;font-weight:700;font-display:swap;src:url("fonts/schibsted-grotesk-latin-700-normal.woff2") format("woff2")}
+@font-face{font-family:"Schibsted Grotesk";font-style:normal;font-weight:800;font-display:swap;src:url("fonts/schibsted-grotesk-latin-800-normal.woff2") format("woff2")}
 :root{
   --ink:#10201d; --muted:#4f625d; --teal:#0f766e; --teal-ink:#0b5a54; --stamp:#d9591a;
   --mist:#e6eeeb; --paper:#fbfcfb; --line:#c6d6d0; --ok:#1b7f50; --bad:#b83a2c; --warn:#a8680c;

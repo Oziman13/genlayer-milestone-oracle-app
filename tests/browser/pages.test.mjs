@@ -239,6 +239,16 @@ const M = "0x" + "d4".repeat(20);
   ok("diagnose: reports on the factory and sends nothing", (await p.textContent("#out")).includes("== Factory") && (await p.textContent("#out")).includes("open this page with ?account=") && errs.length === 0, errs.join("|"));
   await p.close();
 }
+// ---- no third-party requests from page styles (fonts are self-hosted)
+{
+  const webDir = path.join(path.dirname(fileURLToPath(import.meta.url)), "../../web");
+  const css = fs.readdirSync(webDir).filter((f) => f.endsWith(".css"));
+  const remote = css.filter((f) => /@import\s+url\(["']?https?:|url\(["']?https?:/i.test(fs.readFileSync(path.join(webDir, f), "utf8")));
+  ok("styles: no stylesheet imports or loads anything from another host", remote.length === 0, remote.join(","));
+  const site = fs.readFileSync(path.join(webDir, "site.css"), "utf8");
+  const files = [...site.matchAll(/url\("(fonts\/[^"]+\.woff2)"\)/g)].map((m) => m[1]);
+  ok("styles: the four self-hosted font files exist", files.length === 4 && files.every((f) => fs.existsSync(path.join(webDir, f))), files.join(","));
+}
 await browser.close(); srv.close();
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

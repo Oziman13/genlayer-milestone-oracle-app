@@ -1,0 +1,18 @@
+Current test results, 2026-10-24, repo HEAD c820d03 plus font self-hosting change
+
+== python3 -m pytest tests/direct
+........................                                                 [100%]
+168 passed in 4.60s
+== python3 -m pytest tests/glsim
+...............................                                          [100%]
+31 passed in 45.75s
+== node tests/browser/wallet_flow.test.mjs
+124 passed, 0 failed
+== node tests/browser/pages.test.mjs
+58 passed, 0 failed
+== node tests/browser/correctness.test.mjs
+# tests 45
+# pass 45
+# fail 0
+# cancelled 0
+# skipped 0
