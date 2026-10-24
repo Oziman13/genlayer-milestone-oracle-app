@@ -1,12 +1,15 @@
 import { readClient, EXPLORER } from "./wallet.js";
 import { cardView, validAddress, checksum } from "./record.js";
 
+import { showProvenance } from "./provenance.js";
+
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const q = new URLSearchParams(location.search);
 const address = checksum(q.get("address") || "");
 const cfg = window.MO_CONFIG || {};
-const factory = (q.get("factory") || cfg.FACTORY || "").trim();
+const factory = checksum((q.get("factory") || cfg.FACTORY || "").trim());
+showProvenance(factory);
 const short = a => a ? a.slice(0, 8) + "…" + a.slice(-4) : "";
 const utc = t => t ? new Date(t * 1000).toISOString().replace("T", " ").slice(0, 19) + " UTC" : "-";
 const parse = s => { try { return JSON.parse(s); } catch { return null; } };
@@ -48,7 +51,7 @@ async function main() {
     ${last ? `<div class="row"><span>Last event</span><span class="small">${esc(last.action)}</span><time>${esc(utc(last.timestamp))}</time></div>` : ""}
     <p class="meta" style="margin:12px 0 0">${esc(v.note)}${recLine ? " " + recLine : ""}</p>
   </figure>
-  <p class="notice" style="margin-top:16px">A verdict says the stated public checks held (MET) or did not (NOT_MET). It does not say the work is good. A file check reads the file as it is now, not as of the deadline.</p>
+  <p class="notice" style="margin-top:16px">A verdict says the stated public checks held (MET) or did not (NOT_MET). It does not say the work is good. Current-state verification: REPO_FILE, LIVE_PAGE and DELIVERABLE read evidence now, not as of the deadline. MET does not prove historical delivery. GITHUB_RELEASE compares the reported publication time; it does not freeze release contents.</p>
   <div class="btns"><a class="btn alt" href="app.html?address=${esc(address)}${validAddress(factory) ? "&factory=" + esc(factory) : ""}">Open the full history</a>${EXPLORER ? `<a class="btn alt" href="${esc(EXPLORER)}/address/${esc(address)}">View on the explorer</a>` : ""}<button class="btn" id="copy" type="button">Copy this link</button></div>
   <div class="small" id="copied" aria-live="polite" style="margin-top:8px"></div>`;
   $("copy").onclick = async () => {

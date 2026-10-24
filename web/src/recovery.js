@@ -1,6 +1,6 @@
 // Pure reconciliation rules for a transaction that may have been broadcast without a known hash.
 const lc = x => String(x ?? "").toLowerCase();
-const num = x => { const n = Number(x); return Number.isFinite(n) ? n : null; };
+const num = x => { if (x === null || x === undefined || x === "") return null; const n = Number(x); return Number.isFinite(n) ? n : null; };
 const ZERO = "0x" + "0".repeat(40);
 
 // Accepts the shapes a Studio node may return and keeps only what matching needs.
@@ -23,9 +23,11 @@ export function matchCandidates(list, rec) {
   const SLACK = 600; // seconds of clock difference we tolerate
   const startSec = rec.at ? rec.at / 1000 - SLACK : null;
   return (list || []).map(normalizeTx).filter(Boolean).filter(t => {
-    if (t.from && t.from !== lc(rec.account)) return false;
-    if (rec.fn !== "deploy" && t.to && t.to !== ZERO && t.to !== lc(rec.address)) return false;
-    if (rec.nonceBefore !== null && rec.nonceBefore !== undefined && t.nonce !== null && t.nonce < rec.nonceBefore) return false;
+    if (!rec.account || t.from !== lc(rec.account)) return false;
+    if (!Number.isSafeInteger(rec.nonceBefore) || t.nonce !== rec.nonceBefore) return false;
+    if (rec.fn === "deploy" || rec.fn === "deploy_factory") {
+      if (t.to !== ZERO) return false;
+    } else if (!rec.address || t.to !== lc(rec.address)) return false;
     if (startSec !== null && t.at !== null && t.at < startSec) return false;
     return true;
   });
@@ -39,6 +41,6 @@ export function nextStep(rec, { listing, nonceNow }) {
   if (cands.length > 1) return { kind: "UNRESOLVED", reason: "SEVERAL", hashes: cands.map(c => c.hash) };
   if (nonceNow === null || nonceNow === undefined) return { kind: "UNRESOLVED", reason: "NO_NONCE", hashes: [] };
   const before = rec.nonceBefore;
-  if (before !== null && before !== undefined && nonceNow <= before) return { kind: "NOT_SENT" };
+  if (before !== null && before !== undefined && nonceNow === before) return { kind: "NOT_SENT" };
   return { kind: "UNRESOLVED", reason: listing ? "NONCE_MOVED_NO_MATCH" : "NONCE_MOVED_NO_LIST", hashes: [] };
 }
