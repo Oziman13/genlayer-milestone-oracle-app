@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="app.css">
 <link rel="stylesheet" href="proof-workspace.css">
 <link rel="stylesheet" href="verification-workspace.css">
+<link rel="stylesheet" href="mobile-wallet-help.css">
 </head>
 <body>
 <div class="wrap wide">
@@ -31,6 +32,13 @@
       <p>Every transaction is signed in your own wallet (MetaMask or any EIP-1193 wallet) on the GenLayer Studio network. This page never asks for, creates or stores a private key. Use a Studio test account, not one that holds real funds.</p></details>
   </div>
 
+  <aside id="mobile-wallet-help" class="mobile-wallet-help" aria-labelledby="mobile-wallet-help-title" hidden>
+    <div class="eyebrow">MOBILE WALLET / BROWSER COMPATIBILITY</div>
+    <h2 id="mobile-wallet-help-title">Open this page inside your wallet.</h2>
+    <p>This browser does not provide an EIP-1193 wallet connection. To sign on mobile, open your wallet application's built-in dApp browser, then navigate to this exact page. Some wallets may not support GenLayer Studionet or adding custom networks.</p>
+    <div class="mobile-wallet-help-actions"><button type="button" id="copy-wallet-url" class="btn alt sm">Copy current page link</button><span id="copy-wallet-message" role="status" aria-live="polite"></span></div>
+    <p class="mobile-wallet-help-note">Public milestone and Builder Record reads work without connecting. WalletConnect is not integrated; never enter a recovery phrase into this website.</p>
+  </aside>
   <div class="sheet">
     <h3 class="cap">Milestone</h3>
     <div class="pick">
@@ -155,5 +163,6 @@
 <script src="config.js"></script>
 <script src="app.js"></script>
 <script defer src="verification-workspace.js"></script>
+<script defer src="mobile-wallet-help.js"></script>
 </body>
 </html>
