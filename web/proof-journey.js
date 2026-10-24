@@ -33,7 +33,7 @@
   function goToStep(index){
     if(!Number.isInteger(index)||index<0||index>=chapters.length)return;
     select(index);
-    chapters[index].scrollIntoView({behavior:reduced?'instant':'smooth',block:'center'});
+    chapters[index].scrollIntoView({behavior:reduced?'auto':'smooth',block:'center'});
   }
   chapters.forEach((el,index)=>{
     el.addEventListener('click',()=>goToStep(index));
