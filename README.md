@@ -81,7 +81,7 @@ creates, asks for or stores a private key.
 
 ## Tests
 
-`npm test` runs `tests/browser/wallet_flow.test.mjs` (124 checks, wallet app incl. factory create, record and factory deploy flows) and `tests/browser/pages.test.mjs` (56 checks: landing, builder, verdict card pages and record helpers) against a mock wallet and a mock Studio RPC. They do not prove real MetaMask or real Studionet behaviour. Build with `npm run build`.
+`npm test` runs `tests/browser/wallet_flow.test.mjs` (124 checks, wallet app incl. factory create, record and factory deploy flows) and `tests/browser/pages.test.mjs` (56 checks: landing, builder, verdict card pages and record helpers), plus `tests/browser/correctness.test.mjs` (45 read-only regressions for address/query races, provider discovery, malformed reads, provenance badges and responsive layouts), against a mock wallet and a mock Studio RPC. They do not prove real MetaMask or real Studionet behaviour. Build with `npm run build`.
 
 Contract tests (Python, `genlayer-test`): `python3 -m pytest tests/direct` runs 168 direct-mode tests for the Milestone Oracle v0.2.0 contract and for the factory's funder argument (historical 159-test output: `evidence/contract-direct-tests.txt`; current results in the hardening review), and `python3 -m pytest tests/glsim` runs 31 integration tests of `MilestoneFactory` and `record()` on a local 5-validator network (historical 21-test output: `evidence/contract-glsim-tests.txt`; current results in the hardening review). The Studionet evidence is in `evidence/factory-deploy-studionet.txt`, `evidence/factory-live-run-studionet.txt` and `evidence/read-probe-studionet.txt` (why v0.1.1 reads with the default view).
 
@@ -97,3 +97,5 @@ The known demo Factory address is distinguished from custom `?factory=` addresse
 Factory creation no longer adopts a child by matching funder/builder/title in a recent list. Even a unique match is not transaction-specific proof. The finalized creation hash is retained across reloads, sends stay blocked, and the page directs the user to verify the child from the transaction in the explorer. Explicit acknowledgement unlocks sending without claiming that a child was verified or that the creation was not sent. Legacy pending records receive the same safe fallback. No new runtime receipt API is assumed.
 
 Factory deployment now shares the application's durable pending lock; use the wallet app to check an unresolved deployment. Unreadable FINALIZED execution retains its hash and lock. Browser tests use mock RPC/wallets; simulator tests run locally. No live deployment or transaction is part of this review.
+
+P1/P2 correctness fixes, root causes, compatibility limits and the proposed PR description are documented in [the remediation review](docs/P1-P2-CORRECTNESS-REMEDIATION.md). The new correctness harness rejects signing methods and uses intercepted RPC only.

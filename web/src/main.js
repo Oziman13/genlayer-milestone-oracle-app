@@ -1,11 +1,12 @@
 import {
-  hasWallet, readClient, writeClient, connectWallet, ensureNetwork, currentNetworkOk, watchWallet,
-  sendAndConfirm, watchTx, loadPending, clearPending, savePending, readNonce, listAccountTxs, EXPLORER,
+  walletProvider, refreshWalletProvider, hasWallet, readClient, writeClient, connectWallet, ensureNetwork, currentNetworkOk, watchWallet,
+  sendAndConfirm, watchTx, loadPending, clearPending, savePending, readNonce, listAccountTxs, CHAIN_ID_HEX, EXPLORER,
 } from "./wallet.js";
 import { computeActions, validateSetup, roleOf, snapshotOf, effectSeen } from "./logic.js";
 import { nextStep } from "./recovery.js";
 import { validAddress, recordState, checksum } from "./record.js";
 
+import { validReadState, validHistoryRow } from "./read-validation.js";
 import { showProvenance } from "./provenance.js";
 
 const $ = id => document.getElementById(id);
@@ -21,12 +22,18 @@ const factory = checksum((new URLSearchParams(location.search).get("factory") ||
 showProvenance(factory);
 const useFactory = validAddress(factory);   // with a factory, new milestones are created (and recorded) through it
 
+$("setup-explanation").textContent = useFactory
+  ? `Creates a milestone through Factory ${factory}, which deploys its stored Oracle source. Your wallet signs the Factory call; the connected account becomes the funder and the builder must differ. Consult the Factory provenance warning before using a custom address.`
+  : "Deploys a new contract using Oracle source fetched from this repository. Your wallet signs the deployment; the connected account becomes the funder and the builder must differ.";
+
 const POLL = Number(new URLSearchParams(location.search).get("poll")) || undefined; // test hook: faster polling
 const reader = readClient();
+let accountRevision = 0;
 let address = null;      // connected wallet
 let wallet = null;       // write client for that wallet
 let state = null;
 let busy = false;
+let loadGeneration = 0, loadedAddress = null, loading = false, recordCanRecord = false;
 
 const LAST = "mo_last_address";   // remembered so a page reload keeps the milestone you were looking at
 const lastAddr = () => { try { return localStorage.getItem(LAST) || ""; } catch { return ""; } };
@@ -57,8 +64,12 @@ function renderWallet() {
 
 async function doConnect() {
   const w = $("wmsg"); w.className = "msg"; w.textContent = "";
+  refreshWalletProvider();
+  const p = walletProvider(), revision = accountRevision;
   try {
-    address = await connectWallet();
+    const connected = await connectWallet();
+    if (walletProvider() !== p || (revision !== accountRevision && address?.toLowerCase() !== connected.toLowerCase())) throw new Error("Wallet account changed; reconnect.");
+    address = connected;
     wallet = writeClient(address);
     renderWallet();
   } catch (e) {
@@ -67,8 +78,10 @@ async function doConnect() {
 }
 $("connect").onclick = doConnect;
 watchWallet({
-  onAccounts: a => { address = a && a[0] ? a[0] : null; wallet = address ? writeClient(address) : null; renderWallet(); },
-  onChain: async () => { const ok = await currentNetworkOk(); $("wmsg").className = ok ? "msg" : "msg err"; $("wmsg").textContent = ok ? "" : "Wrong network: switch the wallet to GenLayer Studio before sending."; },
+  onProvider: () => { accountRevision++; address = null; wallet = null; $("wmsg").textContent = ""; renderWallet(); },
+  onDisconnect: () => { accountRevision++; address = null; wallet = null; $("wmsg").className = "msg err"; $("wmsg").textContent = "Wallet disconnected. Reconnect before sending."; renderWallet(); },
+  onAccounts: a => { accountRevision++; address = Array.isArray(a) && validAddress(a[0]) ? a[0] : null; wallet = address ? writeClient(address) : null; renderWallet(); },
+  onChain: c => { const ok = String(c).toLowerCase() === CHAIN_ID_HEX; $("wmsg").className = ok ? "msg" : "msg err"; $("wmsg").textContent = ok ? "" : "Wrong network: switch the wallet to GenLayer Studio before sending."; },
 });
 
 // ---------- rendering ----------
@@ -90,7 +103,7 @@ function blockedReason() {
 }
 function renderActions() {
   const sel = $("acheck").value;
-  const a = computeActions(state, address, nowSec(), sel);
+  const a = computeActions(hasLoadedSelection() ? state : null, address, nowSec(), sel);
   const block = blockedReason();
   const map = { start: "b_start", assess: "b_assess", finalize: "b_fin", amend: "b_amend" };
   for (const k of Object.keys(map)) {
@@ -99,7 +112,7 @@ function renderActions() {
     $("r_" + k).textContent = okNow ? "" : (a[k].ok ? block : a[k].reason);
   }
   $("s_deploy").disabled = busy || !!block;
-  if ($("b_record")) $("b_record").disabled = busy || !!block || !address;
+  if ($("b_record")) $("b_record").disabled = busy || !!block || !address || !hasLoadedSelection() || !recordCanRecord;
   renderRecovery();
 }
 function renderRecovery() {
@@ -120,25 +133,60 @@ function describePending(p) {
 }
 $("acheck").onchange = renderActions;
 
-async function view(fn, args = []) {
-  return await reader.readContract({ address: checksum($("addr").value), functionName: fn, args });
+function hasLoadedSelection() {
+  return !!state && !loading && !!loadedAddress && validAddress($("addr").value) &&
+    checksum($("addr").value).toLowerCase() === loadedAddress.toLowerCase();
 }
-
+function clearLoadedContract() {
+  state = null; loadedAddress = null; recordCanRecord = false;
+  $("app").hidden = true; $("recordbox").hidden = true;
+  document.body.classList.remove("loaded"); $("emptyhint").hidden = false;
+  $("txtop").appendChild($("txsheet"));
+}
+function selectedContext() {
+  if (!hasLoadedSelection()) return null;
+  const a = loadedAddress, generation = loadGeneration, st = state;
+  return { address: a, valid: () => hasLoadedSelection() && loadGeneration === generation && state === st && loadedAddress === a };
+}
+$("addr").addEventListener("input", () => {
+  loadGeneration++; loading = false; clearLoadedContract(); renderWallet();
+  $("loadmsg").className = "small"; $("loadmsg").textContent = "Load the selected contract before acting.";
+});
+async function view(fn, args = [], to = loadedAddress) {
+  return await reader.readContract({ address: to, functionName: fn, args });
+}
 async function load() {
-  const msg = $("loadmsg");
-  if (!$("addr").value.trim()) { msg.className = "small"; msg.textContent = "Enter a contract address."; return; }
-  msg.className = "small"; msg.textContent = "Loading...";
+  const generation = ++loadGeneration;
+  const msg = $("loadmsg"), rawAddress = $("addr").value.trim();
+  loading = false; clearLoadedContract(); renderWallet();
+  if (!validAddress(rawAddress)) { msg.className = "small err"; msg.textContent = "Enter a valid contract address: 0x followed by 40 hex characters."; return false; }
+  const requested = checksum(rawAddress);
+  const current = () => generation === loadGeneration && $("addr").value.trim().toLowerCase() === requested.toLowerCase();
+  loading = true; msg.className = "small"; msg.textContent = "Loading...";
   try {
-    const st = parse(await view("get_state_json"));
-    if (!st || !Array.isArray(st.checks)) throw new Error("Unexpected response from contract");
-    state = st;
+    const st = parse(await view("get_state_json", [], requested));
+    if (!current()) return false;
+    if (!validReadState(st)) throw new Error("Unexpected or malformed milestone state.");
+    const attestation = await view("get_attestation", [], requested);
+    if (!current()) return false;
+    if (typeof attestation !== "string") throw new Error("Malformed milestone attestation.");
+    const history = [];
+    for (let i = 0; i < st.history_count; i++) {
+      const row = parse(await view("get_history_json", [i], requested));
+      if (!current()) return false;
+      if (!validHistoryRow(row)) throw new Error("Malformed milestone history row.");
+      history.push(row);
+    }
+    // Commit completed reads only while their address/generation still wins.
+    if (!current()) return false;
+    state = st; loadedAddress = requested; loading = false;
     $("setup").hidden = true;
     $("app").hidden = false;
     $("title").textContent = st.title;
-    $("cardlink").href = "card.html?address=" + checksum($("addr").value) + (useFactory ? "&factory=" + factory : "");
+    $("cardlink").href = "card.html?address=" + requested + (useFactory ? "&factory=" + factory : "");
     $("deadline").textContent = `Deadline: end of ${st.deadline_date} (UTC)`;
     badge($("verdict"), st.latest_verdict || "NONE");
-    $("att").textContent = (await view("get_attestation")) || "NONE";
+    $("att").textContent = attestation || "NONE";
     $("checks").innerHTML = st.checks.map(c => {
       const r = (st.latest_results || {})[c.id];
       return `<div class="crow"><b>${esc(c.id)}</b><span class="chip">${esc(c.kind)}</span><span class="what">${esc(target(c))}</span>${r ? `<span class="badge ${esc(r)}">${esc(r)}</span>` : '<span class="small">not read yet</span>'}</div>`;
@@ -157,8 +205,8 @@ async function load() {
     $("funder").textContent = st.funder;
     $("builder").textContent = st.builder;
     const rows = [];
-    for (let i = 0; i < st.history_count; i++) {
-      const r = parse(await view("get_history_json", [i]));
+    for (let i = 0; i < history.length; i++) {
+      const r = history[i];
       rows.push(r
         ? `<li${r.action === "FINALIZE" ? ' class="final"' : ""}><span class="tdot"></span><b>${esc(r.action)}</b> <span class="badge ${esc(r.verdict)}">${esc(r.verdict)}</span><div class="when">${esc(utc(r.timestamp))} UTC · ${esc(short(r.caller))}</div>${r.note ? `<div class="note">${esc(r.note)}</div>` : ""}</li>`
         : `<li><span class="tdot"></span>Row ${i}: unreadable</li>`);
@@ -166,40 +214,52 @@ async function load() {
     $("hist").innerHTML = rows.join("") || '<li class="empty">No history yet</li>';
     document.body.classList.add("loaded"); $("emptyhint").hidden = true; $("txside").appendChild($("txsheet"));
     msg.textContent = "Loaded.";
-    try { localStorage.setItem(LAST, $("addr").value.trim()); } catch { /* storage may be blocked */ }
+    try { localStorage.setItem(LAST, rawAddress); } catch { /* storage may be blocked */ }
     renderWallet();
-    await refreshRecordBox();
-    return true;
+    await refreshRecordBox(generation, requested, st);
+    return current();
   } catch (e) {
-    // never leave the previous milestone on screen under a new address
-    state = null; $("app").hidden = true; $("recordbox").hidden = true; document.body.classList.remove("loaded"); $("emptyhint").hidden = false; $("txtop").appendChild($("txsheet")); renderWallet();
+    if (!current()) return false;
+    loading = false; clearLoadedContract(); renderWallet();
     msg.textContent = "Could not read the contract: " + (e.message || e);
     msg.className = "small err";
     return false;
   }
 }
 // ---------- delivery record ----------
-async function refreshRecordBox() {
+async function refreshRecordBox(generation = loadGeneration, a = loadedAddress, st = state) {
   const box = $("recordbox");
-  if (!useFactory || !state) { box.hidden = true; return; }
+  const current = () => generation === loadGeneration && state === st && loadedAddress === a && hasLoadedSelection();
+  if (!useFactory || !current()) return;
   let made = false, rec = "NONE";
   try {
-    const a = checksum($("addr").value);
     made = await reader.readContract({ address: factory, functionName: "is_factory_milestone", args: [a] });
+    if (!current()) return;
+    if (typeof made !== "boolean") throw new Error("Malformed factory membership response.");
     if (made) rec = await reader.readContract({ address: factory, functionName: "get_record", args: [a] });
-  } catch { box.hidden = false; $("recmsg2").textContent = "Could not read the delivery record right now."; $("b_record").hidden = true; return; }
-  const v = recordState(made, state, rec);
-  box.hidden = false;
-  $("recmsg2").textContent = v.text;
+    if (!current()) return;
+    if (typeof rec !== "string") throw new Error("Malformed delivery record response.");
+  } catch {
+    if (!current()) return;
+    recordCanRecord = false; box.hidden = false;
+    $("recmsg2").textContent = "Could not read the delivery record right now.";
+    $("b_record").hidden = true; $("recordlink").hidden = true;
+    return;
+  }
+  const v = recordState(made, st, rec);
+  recordCanRecord = v.canRecord;
+  box.hidden = false; $("recmsg2").textContent = v.text;
   $("b_record").hidden = !v.canRecord;
-  $("b_record").disabled = busy || !!blockedReason() || !address;
   const link = $("recordlink"); link.hidden = !v.recorded;
-  link.href = `builder.html?builder=${state.builder}&factory=${factory}`;
+  link.href = `builder.html?builder=${st.builder}&factory=${factory}`;
+  renderActions();
 }
 $("b_record").onclick = async () => {
-  const a = checksum($("addr").value);
-  const o = await guard("record", w => w.writeContract({ address: factory, functionName: "record", args: [a], value: 0n }), { fn: "record", args: [a], address: factory });
-  if (o && ["APPLIED", "REJECTED_BY_CONTRACT", "NOT_APPLIED", "UNCLEAR"].includes(o.kind)) await refreshRecordBox();
+  const context = selectedContext();
+  if (!context || !recordCanRecord) return;
+  const a = context.address;
+  const o = await guard("record", w => w.writeContract({ address: factory, functionName: "record", args: [a], value: 0n }), { fn: "record", args: [a], address: factory }, context);
+  if (o && context.valid() && ["APPLIED", "REJECTED_BY_CONTRACT", "NOT_APPLIED", "UNCLEAR"].includes(o.kind)) await refreshRecordBox();
 };
 
 $("load").onclick = load;
@@ -229,17 +289,19 @@ function progress(fn) {
   };
 }
 
-async function guard(fn, build, remember) {
-  if (busy || blockedReason()) return null;
+async function guard(fn, build, remember, context = null) {
+  if (busy || blockedReason() || (context && !context.valid())) return null;
   if (!wallet || !address) { say("Connect a wallet first.", true); return null; }
   const sendingAccount = address, sendingWallet = wallet;
   busy = true; renderActions();
   try {
     await ensureNetwork();
     if (address !== sendingAccount || wallet !== sendingWallet) throw new Error("Wallet account changed; reconnect before sending.");
+    if (context && !context.valid()) throw new Error("The selected contract changed; load it before acting.");
     say(`Confirm ${fn} in your wallet...`);
     const o = await sendAndConfirm({ client: sendingWallet, address: sendingAccount, build: async () => {
       if (!await currentNetworkOk() || address !== sendingAccount || wallet !== sendingWallet) throw new Error("Wallet changed before signing; reconnect.");
+      if (context && !context.valid()) throw new Error("The selected contract changed before signing.");
       return build(sendingWallet);
     }, onUpdate: progress(fn), label: fn, remember, pollMs: POLL });
     const d = describe(o, fn, o.hash);
@@ -255,8 +317,13 @@ async function guard(fn, build, remember) {
 }
 
 async function sendCall(fn, args) {
-  const addr = checksum($("addr").value);
-  const o = await guard(fn, w => w.writeContract({ address: addr, functionName: fn, args, value: 0n }), { fn, args, address: addr, snapshot: snapshotOf(state) });
+  const context = selectedContext();
+  if (!context) { say("Load the selected contract before acting.", true); return; }
+  const action = { start_round: "start", assess: "assess", finalize: "finalize", amend: "amend" }[fn];
+  const eligibility = computeActions(state, address, nowSec(), $("acheck").value)[action];
+  if (!eligibility?.ok) { say(eligibility?.reason || "Action unavailable.", true); return; }
+  const addr = context.address;
+  const o = await guard(fn, w => w.writeContract({ address: addr, functionName: fn, args, value: 0n }), { fn, args, address: addr, snapshot: snapshotOf(state) }, context);
   if (o && ["APPLIED", "REJECTED_BY_CONTRACT", "NOT_APPLIED", "UNCLEAR"].includes(o.kind)) await load();
   renderActions();
 }
@@ -333,6 +400,7 @@ $("s_deploy").onclick = async () => {
 async function adoptCreated(p) {
   if (!p?.hash) return;
   savePending({ ...p, stage: "created-unresolved" });
+  loadGeneration++; loading = false; loadedAddress = null; recordCanRecord = false;
   state = null; $("addr").value = ""; $("app").hidden = true; $("recordbox").hidden = true;
   document.body.classList.remove("loaded"); $("emptyhint").hidden = false;
   $("txtop").appendChild($("txsheet"));

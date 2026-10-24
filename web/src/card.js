@@ -1,6 +1,7 @@
 import { readClient, EXPLORER } from "./wallet.js";
 import { cardView, validAddress, checksum } from "./record.js";
 
+import { validHistoryCount, validHistoryRow } from "./read-validation.js";
 import { showProvenance } from "./provenance.js";
 
 const $ = id => document.getElementById(id);
@@ -22,8 +23,13 @@ async function main() {
   let state, att, hist = [];
   try {
     state = parse(await call("get_state_json"));
+    if (!validHistoryCount(state?.history_count)) throw new Error("Invalid milestone history count.");
     att = await call("get_attestation");
-    for (let i = 0; i < Math.min(Number(state?.history_count) || 0, 30); i++) hist.push(parse(await call("get_history_json", [i])));
+    for (let i = 0; i < state.history_count; i++) {
+      const row = parse(await call("get_history_json", [i]));
+      if (!validHistoryRow(row)) throw new Error("Invalid milestone history row.");
+      hist.push(row);
+    }
   } catch (e) { return fail("Could not read the milestone: " + esc(e.message || e)); }
   const v = cardView(state, att);
   if (!v) return fail("The contract returned something this page cannot read.");
@@ -59,4 +65,4 @@ async function main() {
     try { await navigator.clipboard.writeText(link); $("copied").textContent = "Link copied."; } catch { $("copied").textContent = link; }
   };
 }
-main();
+main().catch(e => fail("Could not display the milestone: " + esc(e.message || e)));

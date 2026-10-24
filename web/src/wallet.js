@@ -7,7 +7,11 @@ import { studionet } from "genlayer-js/chains";
 export const CHAIN_ID_HEX = "0x" + studionet.id.toString(16);
 export const EXPLORER = studionet.blockExplorers?.default?.url || "";
 
-const provider = () => (typeof window !== "undefined" ? window.ethereum : undefined);
+export const walletProvider = () => {
+  const p = typeof window !== "undefined" ? window.ethereum : undefined;
+  return p && typeof p.request === "function" ? p : undefined;
+};
+const provider = walletProvider;
 export const hasWallet = () => !!provider();
 
 export const readClient = () => createClient({ chain: studionet });
@@ -19,9 +23,10 @@ export class WalletError extends Error {
 export const isUserRejection = e =>
   !!e && (e.code === 4001 || e.code === "ACTION_REJECTED" || /user (rejected|denied)|rejected the request/i.test(String(e.message || e)));
 
-export async function ensureNetwork() {
-  const p = provider();
+export async function ensureNetwork(p = refreshWalletProvider()) {
+  if (!p) throw new WalletError("NO_WALLET", "No browser wallet found.");
   const current = await p.request({ method: "eth_chainId" });
+  if (provider() !== p) throw new WalletError("PROVIDER_CHANGED", "Wallet provider changed; reconnect.");
   if (String(current).toLowerCase() === CHAIN_ID_HEX) return;
   try {
     await p.request({ method: "wallet_switchEthereumChain", params: [{ chainId: CHAIN_ID_HEX }] });
@@ -45,32 +50,85 @@ export async function ensureNetwork() {
     }
   }
   const after = await p.request({ method: "eth_chainId" });
+  if (provider() !== p) throw new WalletError("PROVIDER_CHANGED", "Wallet provider changed; reconnect.");
   if (String(after).toLowerCase() !== CHAIN_ID_HEX) throw new WalletError("WRONG_NETWORK", "The wallet is still on another network.");
 }
 
 export async function connectWallet() {
   if (!hasWallet()) throw new WalletError("NO_WALLET", "No browser wallet found. Install MetaMask (or another EIP-1193 wallet) and reload this page.");
+  const p = refreshWalletProvider(), revision = walletRevision;
   let accounts;
   try {
-    accounts = await provider().request({ method: "eth_requestAccounts" });
+    accounts = await p.request({ method: "eth_requestAccounts" });
   } catch (e) {
     if (isUserRejection(e)) throw new WalletError("USER_REJECTED", "The connection request was declined in the wallet.");
     throw e;
   }
   if (!Array.isArray(accounts) || !accounts.length) throw new WalletError("NO_ACCOUNT", "The wallet returned no account. Unlock it and try again.");
-  await ensureNetwork();
+  if (provider() !== p) throw new WalletError("PROVIDER_CHANGED", "Wallet provider changed; reconnect.");
+  if (!/^0x[0-9a-fA-F]{40}$/.test(accounts[0])) throw new WalletError("NO_ACCOUNT", "The wallet returned an invalid account.");
+  const unchanged = () => {
+    if (provider() !== p || (revision !== walletRevision && activeAccounts?.[0]?.toLowerCase() !== accounts[0].toLowerCase()))
+      throw new WalletError("PROVIDER_CHANGED", "Wallet changed during connection; reconnect.");
+  };
+  unchanged();
+  await ensureNetwork(p);
+  unchanged();
   return accounts[0];
 }
 
 export async function currentNetworkOk() {
-  try { return String(await provider().request({ method: "eth_chainId" })).toLowerCase() === CHAIN_ID_HEX; } catch { return false; }
+  try {
+    const p = refreshWalletProvider();
+    const chain = await p.request({ method: "eth_chainId" });
+    refreshWalletProvider();
+    return provider() === p && String(chain).toLowerCase() === CHAIN_ID_HEX;
+  } catch { return false; }
 }
 
-export function watchWallet({ onAccounts, onChain }) {
+// One binding per provider object. Legacy providers without removeListener are safe:
+// their handlers are ignored whenever that provider is no longer active.
+const walletSubscribers = new Set();
+const providerBindings = new WeakSet();
+let activeProvider, providerMonitor;
+let walletRevision = 0, activeAccounts = null;
+const notifyWallet = (name, ...args) => { for (const s of walletSubscribers) s[name]?.(...args); };
+export function refreshWalletProvider() {
   const p = provider();
-  if (!p || typeof p.on !== "function") return;
-  p.on("accountsChanged", a => onAccounts && onAccounts(a));
-  p.on("chainChanged", c => onChain && onChain(c));
+  if (p === activeProvider) return p;
+  activeProvider = p; walletRevision++; activeAccounts = null;
+  if (p && typeof p.on === "function" && !providerBindings.has(p)) {
+    providerBindings.add(p);
+    const listen = (event, callback) => p.on(event, (...args) => { if (activeProvider === p && provider() === p) callback(...args); });
+    listen("accountsChanged", a => { walletRevision++; activeAccounts = Array.isArray(a) ? a : null; notifyWallet("onAccounts", a); });
+    listen("chainChanged", c => notifyWallet("onChain", c));
+    listen("disconnect", e => { walletRevision++; activeAccounts = null; notifyWallet("onDisconnect", e); });
+  }
+  notifyWallet("onProvider", p);
+  if (typeof window !== "undefined") window.dispatchEvent(new Event("mo:providerchange"));
+  return p;
+}
+export function watchWallet(callbacks) {
+  walletSubscribers.add(callbacks);
+  if (typeof window !== "undefined" && !providerMonitor) {
+    window.addEventListener("ethereum#initialized", refreshWalletProvider);
+    window.addEventListener("focus", refreshWalletProvider);
+    window.addEventListener("pageshow", refreshWalletProvider);
+    // Discovery only: never requests accounts, signatures or a chain switch.
+    providerMonitor = setInterval(refreshWalletProvider, 500);
+  }
+  const previous = activeProvider;
+  const p = refreshWalletProvider();
+  if (previous === p) callbacks.onProvider?.(p);
+  return () => {
+    walletSubscribers.delete(callbacks);
+    if (!walletSubscribers.size && providerMonitor) {
+      clearInterval(providerMonitor); providerMonitor = undefined;
+      window.removeEventListener("ethereum#initialized", refreshWalletProvider);
+      window.removeEventListener("focus", refreshWalletProvider);
+      window.removeEventListener("pageshow", refreshWalletProvider);
+    }
+  };
 }
 
 // ---------------------------------------------------------------------------------------------
