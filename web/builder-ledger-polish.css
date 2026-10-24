@@ -22,3 +22,25 @@ body.badge .builder-network-details{display:none!important}
 body.badge #out .sheet .ledger-view-evidence{display:none}
 body.badge #out .sheet.ledger-single-record{padding:11px}
 @media(max-width:650px){.builder-network-details summary span{width:100%;margin-left:33px}.builder-network-details summary{font-size:13px}.ledger-section{padding-top:28px}}
+
+/* Data-equivalent mobile cards; desktop retains the full accessible table. */
+.ledger-mobile-cards{display:none}
+@media(max-width:700px){
+  body:not(.badge) #out .sheet table.ledger-desktop-table{display:none}
+  body:not(.badge) #out .sheet .ledger-mobile-cards{display:grid;gap:14px;margin-top:16px}
+  .ledger-mobile-card{min-width:0;padding:21px 18px;border:1px solid #4b6959;border-radius:12px;background:linear-gradient(145deg,#19322c,#0d2222)}
+  .ledger-mobile-card-header{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:20px}
+  .ledger-mobile-card-number{font:750 10px/1.5 var(--mono);letter-spacing:.12em;color:#9fdbbc}
+  .ledger-mobile-verdict{font:800 11px var(--mono);border:1px solid #7eab78;background:#2b4632;color:#ceffab;border-radius:7px;padding:7px 10px}
+  .ledger-mobile-verdict[data-verdict="NOT_MET"]{color:#ffb0ac;border-color:#aa716e;background:#382a2a}
+  .ledger-mobile-title{display:block;color:#f0fff4;font-size:20px;font-weight:800;line-height:1.35;letter-spacing:-.035em;text-decoration:none;overflow-wrap:anywhere;margin-bottom:23px}
+  .ledger-mobile-title:hover,.ledger-mobile-title:focus-visible{color:#ceffac;text-decoration:underline}
+  .ledger-mobile-facts{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);column-gap:12px;row-gap:0;margin:0;padding:0;border-top:1px solid #385b4c}
+  .ledger-mobile-facts dt,.ledger-mobile-facts dd{border-bottom:1px solid #385b4c;padding:12px 0;font-size:13px;line-height:1.55}
+  .ledger-mobile-facts dt{color:#a5c5b4}
+  .ledger-mobile-facts dd{margin:0;color:#e1f4e5;font-weight:650;text-align:right;overflow-wrap:anywhere}
+  .ledger-mobile-view{display:block;background:#caff9e;color:#11241a!important;text-align:center;border-radius:9px;padding:13px;margin-top:22px;text-decoration:none;font-size:14px;font-weight:800}
+  .ledger-mobile-view:focus-visible{outline:2px solid #e0ffcf;outline-offset:3px}
+  .ledger-mobile-view:hover{background:#e0ffbf}
+}
+body.badge #out .ledger-mobile-cards{display:none!important}
