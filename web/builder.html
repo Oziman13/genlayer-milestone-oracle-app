@@ -7,21 +7,24 @@
 <link rel="icon" href="logo.png">
 <link rel="stylesheet" href="site.css">
 <link rel="stylesheet" href="proof-workspace.css">
+<link rel="stylesheet" href="builder-ledger.css">
 <style>th{white-space:nowrap;word-break:normal}td.mono{white-space:nowrap;word-break:normal}.sheet{overflow-x:auto}body.badge header,body.badge .intro,body.badge footer,body.badge details{display:none}body.badge .wrap{padding:8px}body.badge section{padding:0}body.badge table,body.badge .notice{display:none}body.badge .sheet{border:0;padding:8px}</style>
 </head>
 <body>
 <div class="wrap">
   <header class="top"><a class="brand" href="./"><img src="logo.png" alt="">Milestone Oracle</a><nav class="nav"><a href="app.html">Open the app</a></nav></header>
   <main>
-  <section>
-    <div class="intro"><p class="eyebrow" style="font:600 12px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--teal-ink);margin:0 0 10px">Delivery record · Studionet</p><h2>Has this builder kept their word?</h2>
-    <p>Paste a builder address to see every finalized milestone recorded for it, with the verdict and who funded it.</p></div>
-    <div style="display:flex;gap:10px;flex-wrap:wrap;margin:14px 0 22px"><input id="builder" style="flex:1 1 320px" spellcheck="false" aria-label="Builder address" placeholder="0x… builder address"><button class="btn" id="go" type="button">Show record</button></div>
+  <section class="ledger-section">
+    <div class="intro ledger-intro"><p class="eyebrow" style="font:600 12px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--teal-ink);margin:0 0 10px">Delivery record · Studionet</p><h2>Has this builder kept their word?</h2>
+    <p>Look beyond a single verdict. Inspect the Factory's recorded milestone outcomes, see the evidence behind each entry, and understand the limits of what a delivery record can prove.</p></div>
+    <div class="ledger-hero-graphic" aria-hidden="true"><div class="ledger-index">PUBLIC DELIVERY RECORD / STUDIO</div><div class="ledger-path"><span>CRITERIA</span><span>EVIDENCE</span><span>VERDICT</span><span>RECORD</span></div><div class="ledger-line"><i></i><i></i><i></i><i></i></div><p>One checkable history. No black-box reputation score.</p></div>
+    <div class="ledger-search" role="search"><label for="builder">BUILDER ADDRESS / 0x</label><div class="ledger-search-controls"><input id="builder" spellcheck="false" aria-label="Builder address" placeholder="0x… builder address"><button class="btn" id="go" type="button">Inspect delivery record <span aria-hidden="true">↗</span></button></div><p>Public read-only lookup · No wallet needed · Studionet</p></div>
     <p class="small" id="exwrap" style="margin:-8px 0 18px;color:var(--muted);font-size:14px" hidden>No address at hand? <a id="exlink" href="#">Open the example builder</a>.</p>
     <div id="out" aria-live="polite"></div>
+    <aside class="ledger-interpretation" aria-labelledby="ledger-limits-heading"><div><p class="eyebrow">READING A RECORD</p><h3 id="ledger-limits-heading">Useful history, not a credit score.</h3></div><div class="ledger-interpretation-grid"><div><span>WHAT IT SHOWS</span><p>Factory-recorded milestone verdicts, amendment counts, finalized application timestamps, and links to checkable evidence.</p></div><div><span>WHAT IT DOES NOT SHOW</span><p>Identity, quality of work, fairness of funding decisions, historical on-time delivery, or independently proven network finality.</p></div></div></aside>
   </section>
   </main>
-  <footer>Explorer: <a id="explorer" href="#">GenLayer Studio explorer</a></footer>
+  <footer>Milestone Oracle · Public delivery records · Explorer: <a id="explorer" href="#">GenLayer Studio explorer</a></footer>
 </div>
 <script src="config.js"></script>
 <script src="builder.js"></script>
