@@ -64,22 +64,22 @@
     </div>
     <div class="pj-stage">
       <div class="pj-chapters" aria-label="The four stages of milestone verification">
-        <article class="pj-chapter pj-reveal" data-active="true">
+        <article class="pj-chapter pj-reveal" data-active="true" role="button" tabindex="0" aria-label="Show this verification stage">
           <div class="pj-no">01 — SPECIFICATION</div>
           <h3>Make the promise testable.</h3>
           <p>A funder defines explicit public checks before work begins. A successful milestone must satisfy those checks—not someone's subjective impression.</p>
         </article>
-        <article class="pj-chapter pj-reveal" data-active="false">
+        <article class="pj-chapter pj-reveal" data-active="false" role="button" tabindex="0" aria-label="Show this verification stage">
           <div class="pj-no">02 — EVIDENCE</div>
           <h3>Point to something real.</h3>
           <p>The builder publishes verifiable sources: a repository file, GitHub release, live page or documented deliverable. The sources remain inspectable.</p>
         </article>
-        <article class="pj-chapter pj-reveal" data-active="false">
+        <article class="pj-chapter pj-reveal" data-active="false" role="button" tabindex="0" aria-label="Show this verification stage">
           <div class="pj-no">03 — ASSESSMENT</div>
           <h3>Let validators examine it.</h3>
           <p>GenLayer validators independently evaluate the public sources. PASS and FAIL are distinct from ERROR, which means the source could not be read.</p>
         </article>
-        <article class="pj-chapter pj-reveal" data-active="false">
+        <article class="pj-chapter pj-reveal" data-active="false" role="button" tabindex="0" aria-label="Show this verification stage">
           <div class="pj-no">04 — RECORD</div>
           <h3>Keep the decision inspectable.</h3>
           <p>After the challenge window, finalization reassesses sources and records the application verdict. The Builder Delivery Record accepts Factory-created milestones.</p>
@@ -87,11 +87,11 @@
       </div>
       <div class="pj-visual" id="pj-scene" data-scene="1" aria-label="Animated illustration of the four verification stages">
         <div class="pj-visual-head"><span>VERIFICATION PATH / 001</span><span class="pj-led">PROCESS MODEL</span></div>
-        <div class="pj-nodes" aria-hidden="true">
-          <div class="pj-node" data-lit="true"><span class="pj-node-core">01</span><span class="pj-node-label">CRITERIA</span></div>
-          <div class="pj-node" data-lit="false"><span class="pj-node-core">02</span><span class="pj-node-label">EVIDENCE</span></div>
-          <div class="pj-node" data-lit="false"><span class="pj-node-core">03</span><span class="pj-node-label">CONSENSUS</span></div>
-          <div class="pj-node" data-lit="false"><span class="pj-node-core">04</span><span class="pj-node-label">VERDICT</span></div>
+        <div class="pj-nodes" role="group" aria-label="Choose a verification stage">
+          <div class="pj-node" data-lit="true"><button class="pj-node-core" type="button" data-pj-step="0" aria-label="Show stage 1: Criteria" aria-pressed="true">01</button><span class="pj-node-label">CRITERIA</span></div>
+          <div class="pj-node" data-lit="false"><button class="pj-node-core" type="button" data-pj-step="1" aria-label="Show stage 2: Evidence" aria-pressed="false">02</button><span class="pj-node-label">EVIDENCE</span></div>
+          <div class="pj-node" data-lit="false"><button class="pj-node-core" type="button" data-pj-step="2" aria-label="Show stage 3: Consensus" aria-pressed="false">03</button><span class="pj-node-label">CONSENSUS</span></div>
+          <div class="pj-node" data-lit="false"><button class="pj-node-core" type="button" data-pj-step="3" aria-label="Show stage 4: Verdict" aria-pressed="false">04</button><span class="pj-node-label">VERDICT</span></div>
         </div>
         <div class="pj-readout" aria-live="off">
           <div class="subhead">CURRENT STAGE / EXPLANATION</div>
