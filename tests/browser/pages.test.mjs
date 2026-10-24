@@ -8,6 +8,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { summaryView, validAddress, pickCreated, recordState, cardView } from "../../web/src/record.js";
 
+import { nextStep } from "../../web/src/recovery.js";
+
 const WEB = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../web");
 const PORT = 8772;
 const FACTORY = "0x" + "f1".repeat(20), B = "0x" + "b2".repeat(20), F = "0x" + "a1".repeat(20), M1 = "0x" + "d4".repeat(20), M2 = "0x" + "d5".repeat(20);
@@ -34,14 +36,24 @@ ok("summaryView drops malformed rows and recounts itself", v.recorded === 2 && v
 
 // ---- pickCreated / recordState
 const rows = [{ funder: F, builder: B, title: "T", milestone: M1 }, { funder: F.toUpperCase().replace("0X", "0x"), builder: B, title: " T ", milestone: M2 }, { funder: "0x" + "cc".repeat(20), builder: B, title: "T", milestone: "0x" + "77".repeat(20) }];
-ok("pickCreated: newest matching row wins, case and spaces ignored", pickCreated(rows, F, B, "T") === M2);
-ok("pickCreated: other funder's twin is never picked", pickCreated(rows, "0x" + "cc".repeat(20), B, "T") === "0x" + "77".repeat(20) && pickCreated(rows, "0x" + "dd".repeat(20), B, "T") === null);
+ok("pickCreated: ambiguous rows never identify a transaction child", pickCreated(rows, F, B, "T") === null);
+ok("pickCreated: even a unique metadata match is not transaction proof", pickCreated(rows, "0x" + "cc".repeat(20), B, "T") === null && pickCreated(rows, "0x" + "dd".repeat(20), B, "T") === null);
 ok("pickCreated: empty or malformed input gives null", pickCreated([], F, B, "T") === null && pickCreated(null, F, B, "T") === null && pickCreated([{ funder: F, builder: B, title: "T", milestone: "bad" }], F, B, "T") === null);
 const fin = { finalized: 1, phase: "FINALIZED", final_verdict: "MET" };
 ok("recordState: not from the factory -> cannot record", !recordState(false, fin, "NONE").canRecord);
 ok("recordState: finalized MET/NOT_MET and not recorded -> can record", recordState(true, fin, "NONE").canRecord && recordState(true, { ...fin, final_verdict: "NOT_MET" }, "NONE").canRecord);
 ok("recordState: INCONCLUSIVE / not finalized -> cannot record", !recordState(true, { ...fin, final_verdict: "INCONCLUSIVE" }, "NONE").canRecord && !recordState(true, { ...fin, finalized: 0, phase: "PROVISIONAL" }, "NONE").canRecord);
 ok("recordState: already recorded -> shown as recorded, no button", recordState(true, fin, "{}").recorded && !recordState(true, fin, "{}").canRecord);
+
+// Missing or different transaction identity cannot unlock an ambiguous send.
+{
+  const rec = {fn:"assess",account:F,address:M1,nonceBefore:5,at:Date.now()};
+  const good = {hash:"0x"+"12".repeat(32),from_address:F,to_address:M1,nonce:5};
+  ok("recovery: exact account target and nonce can be watched", nextStep(rec,{listing:[good],nonceNow:6}).kind === "WATCH");
+  for (const [name, row] of [["missing sender",{...good,from_address:undefined}],["missing target",{...good,to_address:undefined}],["later nonce",{...good,nonce:6}],["unknown nonce",{...good,nonce:undefined}]]) {
+    ok(`recovery: ${name} stays unresolved`, nextStep(rec,{listing:[row],nonceNow:6}).kind === "UNRESOLVED");
+  }
+}
 
 // ---- cardView (pure)
 const st = over => ({ title: "Ship v1", deadline_date: "2026-12-31", funder: F, builder: B, phase: "FINALIZED", finalized: 1, final_verdict: "MET", final_round: 1, round: 1, amendments: 0, history_count: 3,
@@ -55,8 +67,9 @@ ok("cardView: unchecked checks have an empty result, junk input gives null", car
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined, args: ["--no-sandbox"] });
 async function page(summary, extra = {}) {
   const p = await (await browser.newContext()).newPage();
+  let historyIndex = 0;
   const errs = []; p.on("pageerror", e => errs.push(String(e)));
-  await p.route("**/config.js", r => r.fulfill({ status: 200, contentType: "text/javascript", body: 'window.MO_CONFIG={FACTORY:"",LIVE_EXAMPLE:"",REPO_CONTRACT:"https://github.com/Oziman13/genlayer-milestone-oracle",REPO_APP:"https://github.com/Oziman13/genlayer-milestone-oracle-app"};' }));
+  await p.route("**/config.js", r => r.fulfill({ status: 200, contentType: "text/javascript", body: `window.MO_CONFIG=${JSON.stringify({FACTORY:"", LIVE_EXAMPLE:extra.live || "", REPO_CONTRACT:"https://github.com/Oziman13/genlayer-milestone-oracle", REPO_APP:"https://github.com/Oziman13/genlayer-milestone-oracle-app"})};` }));
   await p.route("https://fonts.googleapis.com/**", r => r.fulfill({ status: 200, contentType: "text/css", body: "" }));
   await p.route("https://studio.genlayer.com/**", async r => {
     const req = r.request(); let body = {}; try { body = JSON.parse(req.postData() || "{}"); } catch {}
@@ -69,7 +82,7 @@ async function page(summary, extra = {}) {
         let s = txt.includes("get_builder_summary") ? summary : "NONE", raw = null;
         if (txt.includes("get_state_json")) s = extra.state ? JSON.stringify(extra.state) : "NONE";
         else if (txt.includes("get_attestation")) s = extra.att || "NONE";
-        else if (txt.includes("get_history_json")) s = JSON.stringify({ action: "FINALIZE", verdict: "MET", timestamp: 1790000000, note: "", caller: F });
+        else if (txt.includes("get_history_json")) s = JSON.stringify(extra.history ? extra.history[historyIndex++] : { action: "FINALIZE", verdict: "MET", timestamp: 1790000000, note: "", caller: F });
         else if (txt.includes("is_factory_milestone")) raw = extra.isFactory === true;
         else if (txt.includes("get_record")) s = extra.record || "NONE";
         return { jsonrpc: "2.0", id: x.id, result: Buffer.from(abi.calldata.encode(raw === null ? s : raw)).toString("hex") };
@@ -97,6 +110,45 @@ const url = q => `http://localhost:${PORT}/${q}`;
   ok("landing: old ?address= links still open the app", p.url().includes("/app.html?address=0xDf63"));
   await p.close();
 }
+// Multi-round live landing history: results belong to the event, not latest state.
+{
+  const history = [
+    { action: "START", round: 1, timestamp: 1790000000 },
+    { action: "ASSESS", round: 1, timestamp: 1790000001, verdict: "NOT_YET", phase: "NEEDS_EVIDENCE", results: {a:"PASS",b:"FAIL",c:"FAIL"} },
+    { action: "START", round: 2, timestamp: 1790000002 },
+    { action: "ASSESS", round: 2, timestamp: 1790000003, verdict: "MET", phase: "PROVISIONAL", results: {a:"PASS",b:"PASS",c:"PASS"} },
+    { action: "FINALIZE", round: 2, timestamp: 1790000004, verdict: "INCONCLUSIVE", phase: "NEEDS_EVIDENCE", results: {a:"PASS",b:"ERROR",c:"PASS"} },
+    { action: "FINALIZE", round: 3, timestamp: 1790000005, verdict: "MET", phase: "FINALIZED", results: {a:"PASS",b:"PASS",c:"PASS"} },
+  ];
+  const {p, errs} = await page("{}", {live:M1, state:st({checks:[{id:"a"},{id:"b"},{id:"c"}],history_count:history.length,latest_results:{a:"PASS",b:"PASS",c:"PASS"}}),history});
+  await p.goto(url("index.html"));
+  await p.waitForFunction(() => document.getElementById("live").classList.contains("on"));
+  const rows = await p.locator("#sliprows .row").allTextContents();
+  ok("landing history: round 1 keeps its one of three PASS", /1 of 3 PASS/.test(rows[1]));
+  ok("landing history: round 2 has three of three PASS", /3 of 3 PASS/.test(rows[3]));
+  ok("landing history: failed finalization is a recheck, never FINAL", /recheck/i.test(rows[4]) && !/FINAL/.test(rows[4]));
+  ok("landing history: successful finalization is FINAL in chronological order", /FINAL/.test(rows[5]) && rows[0].includes("Round started") && errs.length === 0);
+  await p.close();
+}
+{
+  const hostile = JSON.stringify({builder:B,created:1,milestones:[{milestone:M1,title:'<img src=x onerror="window.pwned=1">',verdict:"MET",finalized_at:1790000000,funder:F}]});
+  const {p} = await page(hostile);
+  await p.goto(url(`builder.html?builder=${B}&factory=${FACTORY}&badge=1`));
+  await p.waitForSelector(".counts");
+  ok("custom factory: warning stays visible in embedded record", await p.locator("#factory-provenance").isVisible() && (await p.textContent("#factory-provenance")).includes("Unverified custom factory"));
+  ok("custom factory: row link preserves its factory", (await p.getAttribute("#out td a","href")).includes("factory="+getAddress(FACTORY)));
+  ok("record: untrusted title is text, not executable HTML", (await p.locator("#out img").count()) === 0 && (await p.evaluate(()=>window.pwned)) === undefined);
+  ok("record: current-state and network finality limitations are visible", (await p.textContent("#factory-provenance")).includes("not as of the deadline") && (await p.textContent("#factory-provenance")).includes("not proof of network-finalized"));
+  await p.close();
+}
+{
+  const demo = "0x123352e162Fa441Ba1C4252662A7d00EC05fb737";
+  const {p} = await page(raw);
+  await p.goto(url(`builder.html?builder=${B}&factory=${demo}`));
+  await p.waitForSelector(".counts");
+  ok("known demo: address identified without claiming live code verification", (await p.textContent("#factory-provenance")).includes("Known demo factory") && (await p.textContent("#factory-provenance")).includes("not been independently verified"));
+  await p.close();
+}
 // ---- builder page
 {
   const { p, errs } = await page(raw);
@@ -104,7 +156,7 @@ const url = q => `http://localhost:${PORT}/${q}`;
   await p.waitForSelector(".counts");
   const t = await p.textContent("#out");
   ok("builder: counts recomputed from rows (2 recorded, 1 MET, 1 NOT_MET)", /2ontherecord/.test(t.replace(/\s/g, "")) && t.includes("NOT_MET") && t.includes("MET"));
-  ok("builder: rows link to the milestone in the app", (await p.locator("#out table a").first().getAttribute("href")).endsWith("app.html?address=" + getAddress(M1)));
+  ok("builder: rows link to the milestone in the app", (await p.locator("#out table a").first().getAttribute("href")).endsWith("app.html?address=" + getAddress(M1) + "&factory=" + getAddress(FACTORY)));
   ok("builder: states what is NOT counted (created 3, recorded 2)", t.includes("1 more is not finalized or not recorded yet"));
   ok("builder: embed snippet offered", (await p.textContent("#out details pre")).includes("badge=1"));
   ok("builder: no page errors", errs.length === 0, errs.join("|"));

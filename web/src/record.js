@@ -20,15 +20,8 @@ export function summaryView(raw) {
     not_met: rows.filter(r => r.verdict === "NOT_MET").length, with_amendments: rows.filter(r => r.amendments > 0).length, rows };
 }
 
-// The milestone this account just created: newest first, matched on funder, builder and title.
-export function pickCreated(items, funder, builder, title) {
-  const low = x => String(x ?? "").toLowerCase();
-  for (let i = (items || []).length - 1; i >= 0; i--) {
-    const r = items[i];
-    if (r && low(r.funder) === low(funder) && low(r.builder) === low(builder) && String(r.title ?? "").trim() === String(title ?? "").trim() && validAddress(r.milestone)) return r.milestone;
-  }
-  return null;
-}
+// Legacy matching is deliberately disabled: funder/builder/title are not a transaction identity.
+export function pickCreated() { return null; }
 
 // What the record box should say for one milestone page.
 export function recordState(isFactoryMilestone, state, recordRaw) {

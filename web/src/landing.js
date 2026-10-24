@@ -17,19 +17,21 @@ async function main() {
   const st = parse(await call("get_state_json"));
   if (!st || !Array.isArray(st.checks) || !st.checks.length) return;
   const rows = [];
-  for (let i = 0; i < Math.min(Number(st.history_count) || 0, 12); i++) { const r = parse(await call("get_history_json", [i])); if (r) rows.push(r); }
+  for (let i = 0; i < Math.min(Number(st.history_count) || 0, 64); i++) { const r = parse(await call("get_history_json", [i])); if (r) rows.push(r); }
   if (!rows.length) return;
   const verdict = st.phase === "FINALIZED" ? st.final_verdict : (st.latest_verdict || "NONE");
   const res = st.latest_results || {};
-  const pass = st.checks.filter(c => res[c.id] === "PASS").length;
   const slip = document.getElementById("slip");
   slip.querySelector(".stamp").className = "stamp " + esc(verdict);
   slip.querySelector(".stamp").textContent = verdict === "NONE" ? "OPEN" : verdict;
   document.getElementById("slipmeta").textContent = `Studionet, ${day(rows[0].timestamp)}. Funder and builder were two of our own test accounts.`;
   document.getElementById("sliprows").innerHTML = rows.map(r => {
-    const tag = r.action === "ASSESS" ? `${pass} of ${st.checks.length} PASS` : r.action === "FINALIZE" ? "FINAL" : r.action;
-    const cls = r.action === "FINALIZE" ? "FINALIZED" : r.action === "ASSESS" ? (r.verdict || "NONE") : "NONE";
-    return `<div class="row"><time>${hhmm(r.timestamp)}</time><span>${esc(LABEL[r.action] || r.action)}</span><span class="tag ${esc(cls)}">${esc(tag)}</span></div>`;
+    const pass = st.checks.filter(c => r.results?.[c.id] === "PASS").length;
+    const finalized = r.action === "FINALIZE" && r.phase === "FINALIZED";
+    const label = r.action === "FINALIZE" && !finalized ? "Finalization recheck: needs evidence" : (LABEL[r.action] || r.action);
+    const tag = r.action === "ASSESS" ? `${pass} of ${st.checks.length} PASS` : r.action === "FINALIZE" ? (finalized ? "FINAL" : (r.verdict || "NONE")) : r.action;
+    const cls = finalized ? "FINALIZED" : r.action === "ASSESS" ? (r.verdict || "NONE") : "NONE";
+    return `<div class="row"><time>${hhmm(r.timestamp)}</time><span>${esc(label)}</span><span class="tag ${esc(cls)}">${esc(tag)}</span></div>`;
   }).join("");
   document.getElementById("slipchecks").innerHTML = st.checks.map(c => `<span class="pill ${esc(res[c.id] || "NONE")}">${esc(c.id)}: ${esc(res[c.id] || "not read")}</span>`).join("");
   document.getElementById("slipaddr").textContent = a.slice(0, 6) + "…" + a.slice(-4);

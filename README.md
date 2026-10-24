@@ -2,7 +2,7 @@
 
 Wallet-based web client for the Milestone Oracle Intelligent Contract. The contract, its 153 tests and its
 mutation evidence live in https://github.com/Oziman13/genlayer-milestone-oracle ; `contracts/milestone_oracle.py`
-here is the same file, kept so the page can deploy a new milestone from its own repository.
+here is v0.2.0: compatible with the original five-argument deployment, with an optional sixth explicit funder argument for Factory deployment. The original repository retains historical v0.1.0.
 
 Page: https://oziman13.github.io/genlayer-milestone-oracle-app/web/ (open with `?address=0x...` for a deployed instance).
 
@@ -44,7 +44,7 @@ creates, asks for or stores a private key.
 * **Remembers the last milestone**: the address you loaded is kept in localStorage, so reloading the page keeps it
   (an address in the link always wins). Storage that is blocked is ignored.
 * **Tests**: `tests/browser/wallet_flow.test.mjs` runs the page in Chromium against a mock EIP-1193 wallet and a
-  mock Studio RPC (107 checks, output in `evidence/browser-tests-v0.3.txt`; `evidence/browser-tests.txt` is the earlier 80-check run): wallet connect, roles, the start_round, assess,
+  mock Studio RPC (historical run: 107 checks, output in `evidence/browser-tests-v0.3.txt`; `evidence/browser-tests.txt` is the earlier 80-check run): wallet connect, roles, the start_round, assess,
   amend and finalize paths, the transaction lifecycle, the ambiguous-send and reload-recovery cases above, deploy
   adoption and remembered address. They prove the page's logic, not real MetaMask or real Studionet behaviour.
   Mutations of the lifecycle and of the recovery lock are caught by them.
@@ -81,6 +81,19 @@ creates, asks for or stores a private key.
 
 ## Tests
 
-`npm test` runs `tests/browser/wallet_flow.test.mjs` (107 checks, wallet app incl. factory create, record and factory deploy flows) and `tests/browser/pages.test.mjs` (42 checks: landing, builder, verdict card pages and record helpers) against a mock wallet and a mock Studio RPC. They do not prove real MetaMask or real Studionet behaviour. Build with `npm run build`.
+`npm test` runs `tests/browser/wallet_flow.test.mjs` (124 checks, wallet app incl. factory create, record and factory deploy flows) and `tests/browser/pages.test.mjs` (56 checks: landing, builder, verdict card pages and record helpers) against a mock wallet and a mock Studio RPC. They do not prove real MetaMask or real Studionet behaviour. Build with `npm run build`.
 
-Contract tests (Python, `genlayer-test`): `python3 -m pytest tests/direct` runs 159 direct-mode tests for the Milestone Oracle v0.2.0 contract and for the factory's funder argument (`evidence/contract-direct-tests.txt`), and `python3 -m pytest tests/glsim` runs 21 integration tests of `MilestoneFactory` and `record()` on a local 5-validator network (`evidence/contract-glsim-tests.txt`). The Studionet evidence is in `evidence/factory-deploy-studionet.txt`, `evidence/factory-live-run-studionet.txt` and `evidence/read-probe-studionet.txt` (why v0.1.1 reads with the default view).
+Contract tests (Python, `genlayer-test`): `python3 -m pytest tests/direct` runs 168 direct-mode tests for the Milestone Oracle v0.2.0 contract and for the factory's funder argument (historical 159-test output: `evidence/contract-direct-tests.txt`; current results in the hardening review), and `python3 -m pytest tests/glsim` runs 31 integration tests of `MilestoneFactory` and `record()` on a local 5-validator network (historical 21-test output: `evidence/contract-glsim-tests.txt`; current results in the hardening review). The Studionet evidence is in `evidence/factory-deploy-studionet.txt`, `evidence/factory-live-run-studionet.txt` and `evidence/read-probe-studionet.txt` (why v0.1.1 reads with the default view).
+
+
+## Guarantees and hardening review
+
+See [the focused technical review](docs/TECHNICAL-HARDENING-REVIEW.md) for source hashes, deployment/version mapping, regression evidence and remaining risks. This is not a formal audit.
+
+**Current-state verification differs from historical deadline verification.** REPO_FILE, LIVE_PAGE and DELIVERABLE inspect evidence at assessment/finalization time. Content first published or revised after the deadline can pass. MET does not prove the work existed before the deadline. GITHUB_RELEASE checks GitHub's reported published_at, not immutable release contents. A finalization re-read compares the overall verdict; it does not require identical bytes or identical per-check results. An unavailable source is ERROR; FAIL can still determine the verdict when another source is unavailable.
+
+The known demo Factory address is distinguished from custom `?factory=` addresses on record/app/card pages. Factory membership, method names and a self-reported source hash are not independent code authentication. The v0.1.1 Factory accepts constructor-supplied code and uses default child-state reads, not proven network-finalized reads. Direct v0.2.0 deployments may name a funder without proving that address consented.
+
+Factory creation no longer adopts a child by matching funder/builder/title in a recent list. Even a unique match is not transaction-specific proof. The finalized creation hash is retained across reloads, sends stay blocked, and the page directs the user to verify the child from the transaction in the explorer. Explicit acknowledgement unlocks sending without claiming that a child was verified or that the creation was not sent. Legacy pending records receive the same safe fallback. No new runtime receipt API is assumed.
+
+Factory deployment now shares the application's durable pending lock; use the wallet app to check an unresolved deployment. Unreadable FINALIZED execution retains its hash and lock. Browser tests use mock RPC/wallets; simulator tests run locally. No live deployment or transaction is part of this review.

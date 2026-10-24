@@ -4,7 +4,9 @@ import {
 } from "./wallet.js";
 import { computeActions, validateSetup, roleOf, snapshotOf, effectSeen } from "./logic.js";
 import { nextStep } from "./recovery.js";
-import { pickCreated, validAddress, recordState, checksum } from "./record.js";
+import { validAddress, recordState, checksum } from "./record.js";
+
+import { showProvenance } from "./provenance.js";
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -15,7 +17,8 @@ const badge = (el, v) => { el.textContent = v; el.className = "badge " + v; };
 const nowSec = () => Math.floor(Date.now() / 1000);
 
 const cfg = window.MO_CONFIG || {};
-const factory = (new URLSearchParams(location.search).get("factory") || cfg.FACTORY || "").trim();
+const factory = checksum((new URLSearchParams(location.search).get("factory") || cfg.FACTORY || "").trim());
+showProvenance(factory);
 const useFactory = validAddress(factory);   // with a factory, new milestones are created (and recorded) through it
 
 const POLL = Number(new URLSearchParams(location.search).get("poll")) || undefined; // test hook: faster polling
@@ -81,6 +84,7 @@ function target(c) {
 function blockedReason() {
   const p = loadPending();
   if (!p) return "";
+  if (p.stage === "created-unresolved") return "Creation succeeded; child identity is unresolved. Save the transaction before unlocking sending.";
   if (p.stage === "sent") return `Waiting for the earlier ${p.label} transaction to finish.`;
   return `An earlier ${p.label} may have been sent. Reconcile it in "Unfinished transaction" first.`;
 }
@@ -103,10 +107,12 @@ function renderRecovery() {
   const show = !!p && !busy;
   $("recovery").hidden = !show;
   if (!show) return;
-  $("recdismiss").hidden = !!p.hash;
+  $("recdismiss").hidden = !!p.hash && p.stage !== "created-unresolved";
+  $("recdismiss").textContent = p.stage === "created-unresolved" ? "I saved the creation transaction; unlock sending" : "I checked: it was not sent";
   if (!$("recmsg").dataset.keep) $("recmsg").textContent = describePending(p);
 }
 function describePending(p) {
+  if (p.stage === "created-unresolved") return `Creation succeeded. Child address is not verified.\nFactory: ${p.address}\nTx ${p.hash}\nDo not repeat this creation. Inspect the transaction in the explorer; acknowledge only after saving its identity.`;
   return `Action: ${p.label}${p.args && p.args.length ? " (" + p.args.join(", ") + ")" : ""}\nAccount: ${p.account}\nNetwork: chain ${p.chainId}\nContract: ${p.address || "(new deployment)"}\nAccount transaction count before sending: ${p.nonceBefore ?? "unknown"}\n` +
     (p.stage === "signing" ? "The page closed or reloaded while the wallet was being asked to sign. The transaction may or may not have been broadcast."
       : p.stage === "sent" ? `The transaction was sent (Tx ${p.hash}) but its final outcome is not known yet.`
@@ -192,7 +198,7 @@ async function refreshRecordBox() {
 }
 $("b_record").onclick = async () => {
   const a = checksum($("addr").value);
-  const o = await guard("record", () => wallet.writeContract({ address: factory, functionName: "record", args: [a], value: 0n }), { fn: "record", args: [a], address: factory });
+  const o = await guard("record", w => w.writeContract({ address: factory, functionName: "record", args: [a], value: 0n }), { fn: "record", args: [a], address: factory });
   if (o && ["APPLIED", "REJECTED_BY_CONTRACT", "NOT_APPLIED", "UNCLEAR"].includes(o.kind)) await refreshRecordBox();
 };
 
@@ -224,12 +230,18 @@ function progress(fn) {
 }
 
 async function guard(fn, build, remember) {
+  if (busy || blockedReason()) return null;
   if (!wallet || !address) { say("Connect a wallet first.", true); return null; }
+  const sendingAccount = address, sendingWallet = wallet;
   busy = true; renderActions();
   try {
     await ensureNetwork();
+    if (address !== sendingAccount || wallet !== sendingWallet) throw new Error("Wallet account changed; reconnect before sending.");
     say(`Confirm ${fn} in your wallet...`);
-    const o = await sendAndConfirm({ client: wallet, address, build, onUpdate: progress(fn), label: fn, remember, pollMs: POLL });
+    const o = await sendAndConfirm({ client: sendingWallet, address: sendingAccount, build: async () => {
+      if (!await currentNetworkOk() || address !== sendingAccount || wallet !== sendingWallet) throw new Error("Wallet changed before signing; reconnect.");
+      return build(sendingWallet);
+    }, onUpdate: progress(fn), label: fn, remember, pollMs: POLL });
     const d = describe(o, fn, o.hash);
     say(d.text, d.err);
     return o;
@@ -244,7 +256,7 @@ async function guard(fn, build, remember) {
 
 async function sendCall(fn, args) {
   const addr = checksum($("addr").value);
-  const o = await guard(fn, () => wallet.writeContract({ address: addr, functionName: fn, args, value: 0n }), { fn, args, address: addr, snapshot: snapshotOf(state) });
+  const o = await guard(fn, w => w.writeContract({ address: addr, functionName: fn, args, value: 0n }), { fn, args, address: addr, snapshot: snapshotOf(state) });
   if (o && ["APPLIED", "REJECTED_BY_CONTRACT", "NOT_APPLIED", "UNCLEAR"].includes(o.kind)) await load();
   renderActions();
 }
@@ -297,9 +309,9 @@ $("s_deploy").onclick = async () => {
   if (errs.length) return;
   if (useFactory) {
     const args = [form.builder.toLowerCase(), form.title.trim(), form.deadline, JSON.stringify(form.checks), form.window];
-    const o = await guard("create_milestone", () => wallet.writeContract({ address: factory, functionName: "create_milestone", args, value: 0n }),
+    const o = await guard("create_milestone", w => w.writeContract({ address: factory, functionName: "create_milestone", args, value: 0n }),
       { fn: "create_milestone", args: [form.builder, form.title.trim(), form.deadline], address: factory, meta: { builder: form.builder.toLowerCase(), title: form.title.trim() } });
-    if (o && o.kind === "APPLIED") await adoptCreated({ account: address, meta: { builder: form.builder.toLowerCase(), title: form.title.trim() } });
+    if (o && o.kind === "APPLIED") await adoptCreated(loadPending());
     renderActions();
     return;
   }
@@ -311,33 +323,24 @@ $("s_deploy").onclick = async () => {
     if (!code.includes("class MilestoneOracle")) throw new Error("unexpected file content");
   } catch (e) { $("s_errs").textContent = "Could not fetch the contract source: " + (e.message || e); return; }
   const args = [form.builder, form.title.trim(), form.deadline, JSON.stringify(form.checks), form.window];
-  const o = await guard("deploy", () => wallet.deployContract({ code, args, leaderOnly: false }), { fn: "deploy", args: [form.title.trim()] });
+  const o = await guard("deploy", w => w.deployContract({ code, args, leaderOnly: false }), { fn: "deploy", args: [form.title.trim()] });
   if (o && o.kind === "APPLIED") await adoptDeployed(o);
   renderActions();
 };
 
-// A factory milestone's address is found by reading the factory's own list and matching funder, builder and
-// title, newest first. It is adopted only after the create transaction is FINALIZED and successful.
+// No verified transaction-specific child-return schema is established for Studionet.
+// Never infer identity from a list, recency, title, or the current URL's factory.
 async function adoptCreated(p) {
-  try {
-    const total = Number(JSON.parse(await reader.readContract({ address: factory, functionName: "get_milestones_page", args: [0, 1] })).total);
-    const offset = Math.max(0, total - 50);
-    const page = JSON.parse(await reader.readContract({ address: factory, functionName: "get_milestones_page", args: [offset, 50] }));
-    const hit = pickCreated(page.items, p.account, p.meta.builder, p.meta.title);
-    if (!hit) throw new Error("not listed yet");
-    $("addr").value = checksum(hit);
-    // a contract deployed by another contract becomes readable a little after the creating transaction: wait for it
-    let loaded = false;
-    for (let i = 0; i < 18 && !loaded; i++) {
-      if (i) { say(`Milestone created at ${hit}. Waiting for the new contract to become readable (${i}/18)...`); await new Promise(r => setTimeout(r, POLL || 5000)); }
-      loaded = await load();
-    }
-    const link = `${location.origin}${location.pathname}?address=${checksum(hit)}${new URLSearchParams(location.search).get("factory") ? "&factory=" + factory : ""}`;
-    if (loaded) say(`Milestone created at ${checksum(hit)} through the factory.\nShare this link: ${link}`);
-    else say(`Milestone created at ${hit}, but its state is not readable yet, so nothing is shown. Press "Load state" again in a minute.\nLink: ${link}`, true);
-  } catch (e) {
-    say("The milestone was created, but this page could not find its address in the factory list (" + (e.message || e) + "). Open the factory's milestone list in the explorer and paste the address into the Contract box.", true);
-  }
+  if (!p?.hash) return;
+  savePending({ ...p, stage: "created-unresolved" });
+  state = null; $("addr").value = ""; $("app").hidden = true; $("recordbox").hidden = true;
+  document.body.classList.remove("loaded"); $("emptyhint").hidden = false;
+  $("txtop").appendChild($("txsheet"));
+  say(`The milestone was created, but its child address cannot be verified from transaction-specific information supported by this page. No address was adopted.
+Factory: ${p.address}
+Tx ${p.hash}${txLink(p.hash)}
+Do not repeat creation. Inspect this transaction in the explorer, save its identity, and manually load the child only after verifying its provenance. Factory list matches are not proof.`, true);
+  renderActions();
 }
 
 // A deployment's address is adopted only from a FINALIZED, successful transaction.
@@ -352,11 +355,11 @@ const explorerAccount = acc => EXPLORER ? `\nAccount history: ${EXPLORER}/addres
 
 async function finishWatch(p, hash) {
   const o = await watchTx(reader, hash, { onUpdate: progress(p.label), pollMs: POLL });
-  if (o.kind !== "STILL_PENDING") clearPending();
+  if (!["STILL_PENDING", "UNCLEAR"].includes(o.kind) && !(p.fn === "create_milestone" && o.kind === "APPLIED")) clearPending();
   const d = describe(o, p.label, hash);
   say(d.text, d.err);
   if (p.fn === "deploy" && o.kind === "APPLIED") await adoptDeployed(o);
-  else if (p.fn === "create_milestone" && o.kind === "APPLIED" && p.meta) await adoptCreated(p);
+  else if (p.fn === "create_milestone" && o.kind === "APPLIED" && p.meta) await adoptCreated({ ...p, hash });
   else if (p.fn === "record" && $("addr").value) { await load(); }
   else if ($("addr").value && p.fn !== "create_milestone") await load();
   return o;
@@ -418,6 +421,7 @@ $("recheck").onclick = async () => { const p = loadPending(); if (!p || busy) re
 $("recdismiss").onclick = () => {
   const p = loadPending(); if (!p) return;
   clearPending(); delete $("recmsg").dataset.keep;
+  if (p.stage === "created-unresolved") { say(`Creation transaction ${p.hash} acknowledged. No child address has been verified; do not repeat this creation.`); renderActions(); return; }
   say(`Marked the earlier ${p.label} as not sent. Sending is possible again; make sure it really is not in the explorer.`);
   renderActions();
 };

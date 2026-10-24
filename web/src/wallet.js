@@ -104,9 +104,13 @@ export function classify(tx) {
 }
 
 const PENDING_KEY = "mo_pending_tx";
-export function savePending(info) { try { localStorage.setItem(PENDING_KEY, JSON.stringify(info)); } catch { /* storage may be blocked */ } }
-export function loadPending() { try { return JSON.parse(localStorage.getItem(PENDING_KEY) || "null"); } catch { return null; } }
-export function clearPending() { try { localStorage.removeItem(PENDING_KEY); } catch { /* ignore */ } }
+let volatilePending = null;
+export function savePending(info) {
+  volatilePending = info;
+  try { const raw = JSON.stringify(info); localStorage.setItem(PENDING_KEY, raw); return localStorage.getItem(PENDING_KEY) === raw; } catch { return false; }
+}
+export function loadPending() { try { return JSON.parse(localStorage.getItem(PENDING_KEY) || "null") || volatilePending; } catch { return volatilePending; } }
+export function clearPending() { volatilePending = null; try { localStorage.removeItem(PENDING_KEY); } catch { /* ignore */ } }
 
 export async function watchTx(client, hash, { onUpdate, pollMs = 3000, timeoutMs = 15 * 60 * 1000, sleep } = {}) {
   const wait = sleep || (ms => new Promise(r => setTimeout(r, ms)));
@@ -142,9 +146,13 @@ export async function readNonce(client, address) {
 }
 
 export async function sendAndConfirm({ client, address, build, onUpdate, label, pollMs, timeoutMs, sleep, remember }) {
+  if (loadPending()) return { kind: "NOT_SENT", message: "An unfinished transaction blocks sending. Check it in the wallet app first." };
   const nonceBefore = await readNonce(client, address);
   const base = { label, ...remember, account: address, chainId: CHAIN_ID_HEX, nonceBefore, at: Date.now() };
-  remember && savePending({ ...base, stage: "signing" });
+  if (remember && !savePending({ ...base, stage: "signing" })) {
+    clearPending();
+    return { kind: "NOT_SENT", message: "The transaction was not sent: recovery storage is unavailable. Enable local storage before signing." };
+  }
   let hash;
   try {
     hash = await build();
@@ -165,7 +173,7 @@ export async function sendAndConfirm({ client, address, build, onUpdate, label, 
   remember && savePending({ ...base, stage: "sent", hash });
   onUpdate && onUpdate({ stage: "submitted", hash });
   const outcome = await watchTx(client, hash, { onUpdate, pollMs, timeoutMs, sleep });
-  if (outcome.kind !== "STILL_PENDING") clearPending();
+  if (!["STILL_PENDING", "UNCLEAR"].includes(outcome.kind) && !(remember?.fn === "create_milestone" && outcome.kind === "APPLIED")) clearPending();
   return outcome;
 }
 

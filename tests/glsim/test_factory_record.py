@@ -277,3 +277,78 @@ def test_export_feedback_shape_and_hash(sim, factory):
     finalize(sim, bad, met=False, funder=STRANGER, tag="v2.0.0")
     sim.call(factory, "record", [bad], STRANGER)
     assert sim.read_json(factory, "export_feedback", [bad])["value"] == 0
+
+
+# Adversarial children: demonstrate the boundary, not a claim that custom source is approved.
+def supplied_child(tmp_path, changes=None, history_changes=None):
+    spec = {"finalized": 1, "phase": "FINALIZED", "final_verdict": "MET", "history_count": 1,
+            "final_round": 1, "amendments": 0, "checks": [{"id": "release"}],
+            "latest_results": {"release": "PASS"}}
+    spec.update(changes or {})
+    last = {"action": "FINALIZE", "phase": "FINALIZED", "verdict": "MET", "round": 1,
+            "timestamp": 1790000000, "results": {"release": "PASS"}}
+    last.update(history_changes or {})
+    code = '''# { "Depends": "py-genlayer:1jb45aa8ynh2a9c9xn3b7qqh8sm5q93hwfp7jqmwsfhh8jpz09h6" }
+from genlayer import *
+import json
+class MilestoneOracle(gl.Contract):
+    state: str
+    def __init__(self, builder, title, deadline, checks, window, funder):
+        data = SPEC
+        data.setdefault("builder", builder)
+        data.setdefault("funder", funder)
+        data.setdefault("title", title.strip())
+        data["deadline_date"] = deadline
+        self.state = json.dumps(data)
+    @gl.public.view
+    def get_state_json(self) -> str:
+        return self.state
+    @gl.public.view
+    def get_history_json(self, index: int) -> str:
+        return json.dumps(LAST)
+'''.replace("SPEC", repr(spec)).replace("LAST", repr(last))
+    path = tmp_path / "unapproved_child.py"
+    path.write_text(code)
+    return code
+
+
+def test_arbitrary_source_hash_does_not_mean_approved_implementation(sim, tmp_path):
+    code = supplied_child(tmp_path)
+    f = sim.deploy("contracts/milestone_factory.py", [code], FUNDER)
+    info = sim.read_json(f, "get_factory_info")
+    assert info["code_sha256"] == "0x" + hashlib.sha256(code.encode()).hexdigest()
+    assert info["code_sha256"] != "0x" + hashlib.sha256(oracle_code().encode()).hexdigest()
+    # A child of this alternate factory fabricates a self-consistent FINALIZED state.
+    # Membership + getter consistency are NOT source approval or evidence authentication.
+    child = create(sim, f)
+    assert sim.call(f, "record", [child], STRANGER) == "MET"
+    assert sim.read_json(f, "get_record", [child])["checks"] == {"release": "PASS"}
+
+
+@pytest.mark.parametrize("changes,last,error", [
+    ({"builder": STRANGER}, {}, "does not match"),
+    ({"funder": STRANGER}, {}, "does not match"),
+    ({"title": "forged title"}, {}, "does not match"),
+    ({"finalized": 0}, {}, "not FINALIZED"),
+    ({"final_verdict": "INCONCLUSIVE"}, {}, "not MET or NOT_MET"),
+    ({"history_count": 0}, {}, "no history"),
+    ({}, {"action": "ASSESS"}, "matching FINALIZE"),
+    ({}, {"verdict": "NOT_MET"}, "matching FINALIZE"),
+])
+def test_record_rejects_contradictory_child_metadata(sim, tmp_path, changes, last, error):
+    f = sim.deploy("contracts/milestone_factory.py", [supplied_child(tmp_path, changes, last)], FUNDER)
+    child = create(sim, f)
+    with pytest.raises(RpcError, match=error):
+        sim.call(f, "record", [child], STRANGER)
+    assert sim.read(f, "get_record", [child]) == "NONE"
+    assert sim.read_json(f, "get_factory_info")["recorded"] == 0
+
+
+def test_identical_creations_are_distinct_and_metadata_is_not_identity(sim, factory):
+    first = create(sim, factory)
+    second = create(sim, factory)
+    assert first != second
+    rows = sim.read_json(factory, "get_milestones_page", [0, 50])["items"]
+    assert rows[0]["title"] == rows[1]["title"]
+    assert rows[0]["funder"] == rows[1]["funder"] == FUNDER
+    assert rows[0]["builder"] == rows[1]["builder"] == BUILDER

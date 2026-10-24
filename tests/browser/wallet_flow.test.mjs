@@ -53,6 +53,7 @@ async function newCase({ state, txScripts = {}, wallet = {}, hasWallet = true, n
     const req = r.request(); let body = {}; try { body = JSON.parse(req.postData() || "{}"); } catch {}
     if (req.method() === "OPTIONS") return r.fulfill({ status: 204, headers: { "access-control-allow-origin": "*", "access-control-allow-headers": "*", "access-control-allow-methods": "*" } });
     const arr = Array.isArray(body) ? body : [body];
+    if (arr.some(x => x.method === "eth_getTransactionCount") && rpc.onNonce) await rpc.onNonce();
     const out = arr.map(x => {
       rpc.methods.push(x.method);
       if (x.method === "gen_call") {
@@ -442,7 +443,7 @@ async function ambiguousCase(extra = {}) {
 { // two plausible transactions
   const c = await ambiguousCase();
   const H2 = "0x" + "33".repeat(32);
-  c.rpc.listed = [listedTx(), listedTx({ hash: H2, nonce: 1 })];
+  c.rpc.listed = [listedTx(), listedTx({ hash: H2, nonce: 0 })];
   await c.p.reload();
   ok("two candidates: both hashes are shown, nothing is guessed, sends stay blocked", await waitText(c.p, "#recmsg", /Several transactions/) && (await text(c.p, "#recmsg")).includes(H) && (await text(c.p, "#recmsg")).includes(H2) && await allLocked(c));
   await connect(c);
@@ -545,16 +546,16 @@ const created = { total: 2, offset: 0, items: [
   await c.p.click("#s_deploy");
   if (process.env.DBG) { await new Promise(r => setTimeout(r, 1500)); console.log("DATA", (await sentData(c)).slice(0, 700)); console.log("MSG", await text(c.p, "#s_errs"), "|", await text(c.p, "#txmsg"), c.errs); }
   ok("factory: the transaction is a create_milestone call (not a contract deployment)", await c.p.waitForFunction(() => window.__reqs.some(r => r.method === "eth_sendTransaction"), null, { timeout: 8000 }).then(() => true).catch(() => false) && await hasText(c, "create_milestone"));
-  ok("factory: address adopted from the factory list by funder+builder+title (not the other funder's twin)", await c.p.waitForFunction(a => document.getElementById("addr").value.toLowerCase() === a, NEWC, { timeout: 8000 }).then(() => true).catch(() => false));
-  ok("factory: share link keeps the milestone address (checksum spelling)", await waitText(c.p, "#txmsg", new RegExp("\\?address=" + (await import("viem")).getAddress(NEWC))));
-  ok("factory: a not-finalized milestone shows the waiting text and no record button", /Once this milestone is finalized/.test(await text(c.p, "#recmsg2")) && await c.p.locator("#b_record").isHidden());
+  ok("factory: no list match is adopted as transaction proof", await waitText(c.p,"#txmsg",/No address was adopted/) && (await c.p.inputValue("#addr")) === "");
+  ok("factory: transaction hash is retained instead of a guessed share link", (await pend(c))?.hash === H && !/Share this link/.test(await text(c.p,"#txmsg")));
+  ok("factory: unresolved creation hides previous milestone and record", await c.p.locator("#app").isHidden() && await c.p.locator("#recordbox").isHidden());
   await c.ctx.close();
 }
 { // created but not found in the list -> nothing adopted, clear message
   const c = await newCase({ state: baseState(), wallet: { accounts: [FUNDER], hash: H }, txScripts: { [H]: [tx("FINALIZED", "SUCCESS", { recipient: FACTORY })] } });
   c.rpc.factoryPage = { total: 0, items: [] };
   await c.open(`&factory=${FACTORY}`); await fillSetup(c); await c.p.click("#s_deploy");
-  ok("factory: milestone not in the list -> message, address NOT adopted", await waitText(c.p, "#txmsg", /could not find its address/) && (await c.p.inputValue("#addr")) === "");
+  ok("factory: milestone not in the list -> message, address NOT adopted", await waitText(c.p, "#txmsg", /No address was adopted/) && (await c.p.inputValue("#addr")) === "");
   await c.ctx.close();
 }
 { // finalized + factory milestone + not yet recorded -> record button, signed, then link
@@ -591,7 +592,12 @@ const created = { total: 2, offset: 0, items: [
   c.rpc.factoryPage = created; c.rpc.states[NEWC] = baseState({ title: "Fresh milestone" });
   await seed(c, { stage: "sent", hash: H, label: "create_milestone", fn: "create_milestone", args: [BUILDER, "Demo milestone"], address: FACTORY, meta: { builder: BUILDER, title: "Demo milestone" }, account: FUNDER, chainId: "0xf22f", nonceBefore: 0, at: Date.now() });
   await c.open(`&factory=${FACTORY}&address=${CONTRACT}`);
-  ok("factory recovery: a finalized create_milestone is adopted after a reload", await c.p.waitForFunction(a => document.getElementById("addr").value.toLowerCase() === a, NEWC, { timeout: 8000 }).then(() => true).catch(() => false) && await waitText(c.p, "#title", /Fresh milestone/) && (await pend(c)) === null);
+  ok("factory recovery: finalized creation stays unresolved after reload", await waitText(c.p,"#txmsg",/No address was adopted/) && (await c.p.inputValue("#addr")) === "" && (await pend(c))?.hash === H);
+  ok("factory recovery: recorded factory remains authoritative despite URL", (await pend(c))?.address === FACTORY);
+  await c.p.reload();
+  ok("factory recovery: second reload retains transaction and lock", await waitText(c.p,"#txmsg",/No address was adopted/) && await allLocked(c));
+  await c.p.click("#recdismiss");
+  ok("factory recovery: manual acknowledgement never calls the creation not sent", await waitText(c.p,"#txmsg",/acknowledged/) && !/not sent/i.test(await text(c.p,"#txmsg")) && (await pend(c)) === null);
   await c.ctx.close();
 }
 
@@ -642,8 +648,8 @@ const created = { total: 2, offset: 0, items: [
   await c.p.waitForSelector("#title", { state: "visible" });
   ok("late contract: the old milestone is loaded first", (await text(c.p, "#title")) === "Old milestone");
   await fillSetup(c); await c.p.click("#s_deploy");
-  ok("late contract: after retries the NEW milestone is shown and success is reported", await waitText(c.p, "#title", /Fresh milestone/) && await waitText(c.p, "#txmsg", /Milestone created at .* through the factory/));
-  ok("late contract: the old milestone never stays on screen under the new address", (await c.p.inputValue("#addr")).toLowerCase() === NEWC);
+  ok("late contract: unreadable candidate is never auto-adopted", await waitText(c.p,"#txmsg",/No address was adopted/) && await c.p.locator("#app").isHidden());
+  ok("late contract: the old milestone never stays on screen under the new address", (await c.p.inputValue("#addr")) === "");
   await c.ctx.close();
 }
 { // never readable: honest message, no stale data, no success claim
@@ -652,7 +658,7 @@ const created = { total: 2, offset: 0, items: [
   await c.open(`&factory=${FACTORY}&address=${CONTRACT}`);
   await c.p.waitForSelector("#title", { state: "visible" });
   await fillSetup(c); await c.p.click("#s_deploy");
-  ok("unreadable contract: says created-but-not-readable, no success claim, old data hidden", await waitText(c.p, "#txmsg", /not readable yet/, 15000) && !/through the factory\.\nShare/.test(await text(c.p, "#txmsg")) && await c.p.locator("#app").isHidden());
+  ok("unreadable contract: says created-but-not-readable, no success claim, old data hidden", await waitText(c.p, "#txmsg", /No address was adopted/, 15000) && !/through the factory\.\nShare/.test(await text(c.p, "#txmsg")) && await c.p.locator("#app").isHidden());
   await c.ctx.close();
 }
 
@@ -663,6 +669,63 @@ const created = { total: 2, offset: 0, items: [
   await c.p.waitForSelector("#title", { state: "visible" });
   ok("checksum: reads use the checksum spelling although the page was opened with a lowercase address", c.rpc.calledTo.length > 0 && c.rpc.calledTo.every(t => t === getAddress(CONTRACT)), c.rpc.calledTo.join(","));
   ok("checksum: the verdict-card link uses the checksum spelling", (await c.p.getAttribute("#cardlink", "href")).endsWith("address=" + getAddress(CONTRACT)));
+  await c.ctx.close();
+}
+
+{
+  const c = await newCase({state:baseState(),wallet:{accounts:[OTHER],hash:H}});
+  await loaded(c); await connect(c);
+  await c.p.evaluate(()=>{ Storage.prototype.setItem = () => { throw new Error("storage blocked"); }; });
+  await c.p.click("#b_fin");
+  ok("wallet: unavailable recovery storage prevents signing", await waitText(c.p,"#txmsg",/recovery storage is unavailable/) && !(await c.p.evaluate(()=>window.__reqs.some(r=>r.method==="eth_sendTransaction"))));
+  await c.ctx.close();
+}
+// Account changes while the nonce request is in flight must not sign with another client.
+for (const deployFactory of [false,true]) {
+  const c = await newCase({state:baseState(),wallet:{accounts:[OTHER],hash:H}});
+  if (deployFactory) {
+    await c.p.goto(`http://localhost:${PORT}/deploy-factory.html`);
+    await c.p.waitForFunction(()=>/SHA-256/.test(document.getElementById("info").textContent));
+    await c.p.click("#connect"); await waitText(c.p,"#who",/Connected/);
+  } else { await loaded(c); await connect(c); }
+  c.rpc.onNonce = async () => { c.rpc.onNonce = null; await c.p.evaluate(a=>window.ethereum.emit("accountsChanged",[a]),FUNDER); };
+  await c.p.click(deployFactory ? "#deploy" : "#b_fin");
+  ok(`account race: ${deployFactory ? "factory deployment" : "milestone action"} aborts before signing`, await waitText(c.p,deployFactory ? "#msg" : "#txmsg",/Wallet changed/) && !(await c.p.evaluate(()=>window.__reqs.some(r=>r.method==="eth_sendTransaction"))));
+  await c.ctx.close();
+}
+// Exact transaction-to-child association is unavailable: all list shapes fail closed.
+for (const [name, page] of [
+  ["identical consecutive creations", {total:2,items:[{funder:FUNDER,builder:BUILDER,title:"Demo milestone",milestone:CONTRACT},{funder:FUNDER,builder:BUILDER,title:"Demo milestone",milestone:NEWC}]}],
+  ["concurrent single match is not proof", created],
+  ["more than 50 newer creations", {total:100,offset:50,items:created.items}],
+  ["RPC indexing delay", {total:0,items:[]}],
+]) {
+  const c = await newCase({state:baseState(),wallet:{accounts:[FUNDER],hash:H},txScripts:{[H]:[tx("FINALIZED","SUCCESS",{recipient:FACTORY})]}});
+  c.rpc.factoryPage = page;
+  await c.open(`&factory=${FACTORY}`); await fillSetup(c); await c.p.click("#s_deploy");
+  await waitText(c.p,"#txmsg",/created|applied/);
+  await new Promise(r=>setTimeout(r,100));
+  ok(`creation safety: ${name} never adopts a guessed address`, (await c.p.inputValue("#addr")) === "");
+  ok(`creation safety: ${name} retains finalized transaction for manual recovery`, (await pend(c))?.hash === H && await allLocked(c));
+  await c.ctx.close();
+}
+{
+  const c = await newCase({state:baseState(),wallet:{accounts:[FUNDER],sendMode:"errorButSent"},nonceBump:true});
+  await c.p.goto(`http://localhost:${PORT}/deploy-factory.html`);
+  await c.p.waitForFunction(()=>/SHA-256/.test(document.getElementById("info").textContent));
+  await c.p.click("#connect"); await waitText(c.p,"#who",/Connected/); await c.p.click("#deploy");
+  await waitText(c.p,"#msg",/AMBIGUOUS|may have been sent/);
+  ok("factory deployment: ambiguous send is durably locked", (await pend(c))?.stage === "ambiguous" && await c.p.locator("#deploy").isDisabled());
+  await c.p.reload();
+  await c.p.click("#connect"); await waitText(c.p,"#who",/Connected/);
+  ok("factory deployment: reload preserves the send lock", await c.p.locator("#deploy").isDisabled());
+  await c.ctx.close();
+}
+{
+  const c = await newCase({state:baseState(),wallet:{accounts:[OTHER],hash:H},txScripts:{[H]:[tx("FINALIZED","")]}});
+  await loaded(c); await connect(c); await c.p.click("#b_fin");
+  await waitText(c.p,"#txmsg",/unreadable/);
+  ok("unreadable finalized execution retains pending hash and blocks resend", (await pend(c))?.hash === H && await allLocked(c));
   await c.ctx.close();
 }
 
