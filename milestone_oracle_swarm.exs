@@ -15,7 +15,7 @@
       config: %{
         every: "10m",
         instructions: "MilestoneOracle kontratındaki aktif aşamanın 'window_end' (bitiş) süresini kontrol et.",
-        context: %{contract: "MilestoneOracle", network: "genlayer"},
+        context: %{contract: "MilestoneOracle", network: "bradbury"},
         actions: [
           %{
             id: "nothing",
