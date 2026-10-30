@@ -1,4 +1,6 @@
-"""Run four representative historical mutations on disposable copies, never on the original checkout.
+"""NOTE: needs a local checkout of the removed standalone v0.1.0 repository next to this one (../genlayer-milestone-oracle); it is no longer published.
+
+Run four representative historical mutations on disposable copies, never on the original checkout.
 
 Run using the prepared Python interpreter and PYTHONPATH setup. Not a rerun of all 26 historical mutants.
 """
