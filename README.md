@@ -1,8 +1,8 @@
 # Milestone Oracle: web client
 
-Wallet-based web client for the Milestone Oracle Intelligent Contract. The contract, its 153 tests and its
-mutation evidence live in https://github.com/Oziman13/genlayer-milestone-oracle ; `contracts/milestone_oracle.py`
-here is v0.2.0: compatible with the original five-argument deployment, with an optional sixth explicit funder argument for Factory deployment. The original repository retains historical v0.1.0.
+Wallet-based web client for the Milestone Oracle Intelligent Contract. The contract (`contracts/milestone_oracle.py`), its tests and
+its evidence now live in this repository. The earlier standalone repository that held v0.1.0 (153 direct tests, 26 historical mutants) has been removed, so its
+numbers are not independently checkable here. `contracts/milestone_oracle.py` is v0.2.0: compatible with the original five-argument deployment, with an optional sixth explicit funder argument for Factory deployment. Historical v0.1.0 is no longer published as a repository.
 
 Page: https://oziman13.github.io/genlayer-milestone-oracle-app/web/ (open with `?address=0x...` for a deployed instance).
 
@@ -16,7 +16,7 @@ funds; a finalized verdict is an attestation readable with `get_attestation()`.
 ## What this client does
 
 
-`web/index.html` (landing), `web/app.html` + `web/app.js` (the wallet app), `web/builder.html` + `web/builder.js` (read-only delivery record for a builder; `?builder=0x..&factory=0x..`, `&badge=1` for an embeddable view), `web/card.html` + `web/card.js` (shareable verdict card, `?address=0x..`; only a FINALIZED MET/NOT_MET gets a stamp), `web/deploy-factory.html` (one-time page that deploys the factory from the wallet and checks its code hash against the shown source), `web/skill.md` (agent instructions), `web/config.js` (factory address; empty until a factory is deployed, and pages then say so instead of showing sample data). Old `?address=` links on `index.html` redirect to `app.html`. The wallet app is (bundled from `web/src/*.js` with genlayer-js 1.1.8). Reads are account-less.
+`web/index.html` (landing), `web/app.html` + `web/app.js` (the wallet app), `web/builder.html` + `web/builder.js` (read-only delivery record for a builder; `?builder=0x..&factory=0x..`, `&badge=1` for an embeddable view), `web/card.html` + `web/card.js` (shareable verdict card, `?address=0x..`; only a FINALIZED MET/NOT_MET gets a stamp), `web/deploy-factory.html` (one-time page that deploys the factory from the wallet and checks its code hash against the shown source), `web/skill.md` (agent instructions), `web/config.js` (factory address; empty until a factory is deployed, and pages then say so instead of showing sample data). Old `?address=` links on `index.html` redirect to `app.html`. The wallet app is bundled from `web/src/*.js` with genlayer-js 1.1.8. Reads are account-less.
 Every write is signed by the user's own browser wallet (MetaMask or any EIP-1193 wallet). The page never
 creates, asks for or stores a private key.
 
@@ -69,8 +69,9 @@ creates, asks for or stores a private key.
 ## Limits
 
 * Tests use a mock wallet and mock Studio RPC; they do not prove real MetaMask or Studionet behaviour.
-* A real Studionet run through this page (deploy, start, assess, finalize with MetaMask) is recorded in the contract
-  repository: https://github.com/Oziman13/genlayer-milestone-oracle/blob/main/evidence/live-run-1.txt
+* A real Studionet run through this page (deploy, start, assess, finalize with MetaMask) is recorded in
+  `evidence/live-run-1.txt` in this repository. Its REPO_FILE and GITHUB_RELEASE checks pointed at the removed v0.1.0 repository, so re-assessing that
+  historical instance today would not reproduce its result
   Demo instance: https://oziman13.github.io/genlayer-milestone-oracle-app/web/?address=0xDf63AB2C788c452e5E0088E6767Fe78e6e93ce30
   (two Studio test accounts of one person, so it shows the mechanics, not an independent attestation).
 * The recovery paths (ambiguous send, reload while signing, several matching transactions) were exercised with mocks
