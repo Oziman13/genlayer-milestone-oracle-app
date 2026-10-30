@@ -6,6 +6,6 @@ window.MO_CONFIG = {
   // Factory-created v0.2.0 example from the historical 2026-10-22 transcript; not independently reverified here.
   EXAMPLE_BUILDER: "0xabF20c3e89d0E1C37DEAeA3B44602F4838661160",
   LIVE_EXAMPLE: "0xDf63AB2C788c452e5E0088E6767Fe78e6e93ce30",
-  REPO_CONTRACT: "https://github.com/Oziman13/genlayer-milestone-oracle",
+  REPO_CONTRACT: "https://github.com/Oziman13/genlayer-milestone-oracle-app/tree/main/contracts",
   REPO_APP: "https://github.com/Oziman13/genlayer-milestone-oracle-app",
 };
